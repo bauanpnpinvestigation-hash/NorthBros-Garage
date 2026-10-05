@@ -10,14 +10,43 @@ import { formatCurrency } from '@/lib/utils/format';
 import { ServiceBooking } from '@/types/database';
 import { Check, CheckCircle2, Clock } from 'lucide-react';
 
-function getManilaTomorrow(): string {
+function getTomorrowForTimezone(timeZone: string): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   }).formatToParts(new Date());
-  const base = `${parts.find(p => p.type === 'year')?.value}-${parts.find(p => p.type === 'month')?.value}-${parts.find(p => p.type === 'day')?.value}`;
-  const tomorrow = new Date(`${base}T00:00:00+08:00`);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(tomorrow);
+  const year = Number(parts.find((p) => p.type === 'year')?.value);
+  const month = Number(parts.find((p) => p.type === 'month')?.value);
+  const day = Number(parts.find((p) => p.type === 'day')?.value);
+  const tomorrow = new Date(Date.UTC(year, month - 1, day + 1));
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(tomorrow);
+}
+
+function localDateTimeToIso(date: string, time: string, timeZone: string): string {
+  const [year, month, day] = date.split('-').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
+  const utcGuess = Date.UTC(year, month - 1, day, hour, minute);
+  const offsetPart = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    timeZoneName: 'longOffset',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+    .formatToParts(new Date(utcGuess))
+    .find((part) => part.type === 'timeZoneName')?.value || 'GMT';
+  const match = offsetPart.match(/^GMT([+-])(\d{2})(?::?(\d{2}))?$/);
+  const offsetMinutes = match
+    ? (Number(match[2]) * 60 + Number(match[3] || 0)) * (match[1] === '-' ? -1 : 1)
+    : 0;
+  return new Date(utcGuess - offsetMinutes * 60_000).toISOString();
 }
 
 export default function ServiceDetailPage({
@@ -27,7 +56,8 @@ export default function ServiceDetailPage({
 }) {
   const { slug } = use(params);
   const { services, createServiceBooking, customerVehicles, user } = useStore();
-  const { getCurrency } = useAppSettings();
+  const { getCurrency, getString } = useAppSettings();
+  const businessTimezone = getString('business.timezone', 'UTC').trim() || 'UTC';
   const service = services.find((s) => s.slug === slug);
 
   const [customerName, setCustomerName] = useState(user?.name || '');
@@ -37,7 +67,7 @@ export default function ServiceDetailPage({
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
   const [slots, setSlots] = useState<Array<{id:string;branch_id:string;start_time:string;end_time:string;capacity:number;branch_name:string}>>([]);
   const [selectedSlotId, setSelectedSlotId] = useState('');
-  const [preferredDate, setPreferredDate] = useState(getManilaTomorrow);
+  const [preferredDate, setPreferredDate] = useState(() => getTomorrowForTimezone(businessTimezone));
   const [preferredTime, setPreferredTime] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -73,11 +103,11 @@ export default function ServiceDetailPage({
         setSlots(next);
         if (next[0]) {
           setSelectedSlotId(next[0].id);
-          setPreferredDate(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila'}).format(new Date(next[0].start_time)));
-          setPreferredTime(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Manila',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(next[0].start_time)));
+          setPreferredDate(new Intl.DateTimeFormat('en-CA',{timeZone:businessTimezone}).format(new Date(next[0].start_time)));
+          setPreferredTime(new Intl.DateTimeFormat('en-GB',{timeZone:businessTimezone,hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(next[0].start_time)));
         }
       });
-  }, [service]);
+  }, [service, businessTimezone]);
 
 
   if (!service) {
@@ -107,7 +137,7 @@ export default function ServiceDetailPage({
     if (!user) { setErrors({ submit: 'Please sign in before booking a service.' }); return; }
     try {
       const selectedSlot = slots.find((slot) => slot.id === selectedSlotId);
-      const scheduled = new Date(preferredDate + 'T' + preferredTime + ':00+08:00');
+      const scheduled = new Date(localDateTimeToIso(preferredDate, preferredTime, businessTimezone));
       if (Number.isNaN(scheduled.getTime())) {
         setErrors({ submit: 'Choose a valid appointment date and time.' });
         return;
@@ -300,15 +330,15 @@ export default function ServiceDetailPage({
                       const slot = slots.find((item) => item.id === e.target.value);
                       setSelectedSlotId(e.target.value);
                       if (slot) {
-                        setPreferredDate(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila'}).format(new Date(slot.start_time)));
-                        setPreferredTime(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Manila',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(slot.start_time)));
+                        setPreferredDate(new Intl.DateTimeFormat('en-CA',{timeZone:businessTimezone}).format(new Date(slot.start_time)));
+                        setPreferredTime(new Intl.DateTimeFormat('en-GB',{timeZone:businessTimezone,hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(slot.start_time)));
                       }
                     }}
                     className="w-full px-3 py-2 text-xs bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
                   >
                     {slots.map((slot) => (
                       <option key={slot.id} value={slot.id}>
-                        {new Date(slot.start_time).toLocaleString('en-PH',{timeZone:'Asia/Manila',dateStyle:'medium',timeStyle:'short'})} · {slot.branch_name} · capacity {slot.capacity}
+                        {new Date(slot.start_time).toLocaleString('en-PH',{timeZone:businessTimezone,dateStyle:'medium',timeStyle:'short'})} · {slot.branch_name} · capacity {slot.capacity}
                       </option>
                     ))}
                   </select>
