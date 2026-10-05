@@ -21,7 +21,7 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { cart, favorites, user, isHydrated, refreshAuth, logout } = useStore();
   const { getString } = useAppSettings();
-  const siteName = getString('branding.site_name', '{siteName}');
+  const siteName = getString('branding.site_name', 'NorthBros Garage');
 
   useEffect(() => {
     if (isHydrated && !user) {
