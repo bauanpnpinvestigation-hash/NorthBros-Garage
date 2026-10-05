@@ -1,4 +1,3 @@
-
 export interface AppSetting {
   id: string;
   category: string;
@@ -10,9 +9,10 @@ export interface AppSetting {
   updated_at: string;
 }
 
+export type UserRole = 'customer' | 'staff' | 'mechanic' | 'manager' | 'admin';
 export type ProductStatus = 'Active' | 'Out of Stock' | 'Archived';
 export type OrderFulfillmentStatus = 'Processing' | 'Packed' | 'Shipped' | 'Delivered' | 'Cancelled';
-export type PaymentStatus = 'Pending Verification' | 'Paid' | 'COD Pending';
+export type PaymentStatus = 'Pending Verification' | 'Paid' | 'Failed' | 'Refunded' | 'Partially Refunded' | 'COD Pending';
 export type PaymentMethodType = string;
 export type ServiceAvailability = 'Available' | 'Limited Slots' | 'Unavailable';
 export type ServiceBookingStatus = 'Pending' | 'Confirmed' | 'In Service Bay' | 'Completed' | 'Cancelled';
@@ -176,7 +176,7 @@ export interface VlogPost {
   duration: string;
   author_name: string;
   author_role: string;
-  category: 'Service Bay Vlog' | 'Part Install Guide' | 'Dyno & Diagnostics' | 'Tool & Part Review';
+  category: string;
   summary: string;
   content: string[];
   thumbnail_url: string;
@@ -224,7 +224,7 @@ export interface UserProfile {
   city: string;
   postal_code: string;
   garage_vehicle?: string;
-  role: 'customer' | 'admin';
+  role: UserRole;
   created_at: string;
 }
 
