@@ -73,7 +73,7 @@ export default function ServiceDetailPage({
       const end = new Date(scheduled.getTime() + (service.duration_minutes || 60) * 60000);
       const booking = await createServiceBooking({ service_id: service.id, scheduled_start: scheduled.toISOString(), scheduled_end: end.toISOString(), notes: [vehicleDetails.trim(), notes.trim()].filter(Boolean).join(' — ') });
       setErrors({});
-      setConfirmedBooking({ ...booking, booking_reference: booking.appointment_number, service_slug: service.slug, service_name: service.name, service_price: service.price, user_id: user.id, customer_name: customerName.trim(), customer_email: customerEmail.trim(), customer_phone: customerPhone.trim(), vehicle_details: vehicleDetails.trim(), preferred_date: preferredDate, preferred_time: preferredTime, notes: notes.trim() || undefined } as ServiceBooking);
+      setConfirmedBooking({ ...booking, service_id: service.id, created_at: new Date().toISOString(), booking_reference: booking.appointment_number, service_slug: service.slug, service_name: service.name, service_price: service.price, user_id: user.id, customer_name: customerName.trim(), customer_email: customerEmail.trim(), customer_phone: customerPhone.trim(), vehicle_details: vehicleDetails.trim(), preferred_date: preferredDate, preferred_time: preferredTime, notes: notes.trim() || undefined } as ServiceBooking);
     } catch (error) { setErrors({ submit: error instanceof Error ? error.message : 'Unable to book this service.' }); }
   };
 

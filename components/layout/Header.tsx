@@ -1,5 +1,134 @@
 'use client';
 
-import React,{useEffect,useState}from'react';import Link from'next/link';import{usePathname}from'next/navigation';import{useStore}from'@/components/shared/StoreProvider';import{Menu,X}from'lucide-react';
-const NAV_ITEMS=[{href:'/parts',label:'Car Parts'},{href:'/services',label:'Services'},{href:'/categories',label:'Categories'},{href:'/brands',label:'Brands'},{href:'/vlogs',label:'Daily Vlog'}];
-export function Header(){const pathname=usePathname();const [mobileMenuOpen,setMobileMenuOpen]=useState(false);const{cart,favorites,user,isHydrated,refreshAuth}=useStore();useEffect(()=>{if(isHydrated&&!user&&pathname!=='/auth/login'&&pathname!=='/auth/register')void refreshAuth();},[pathname,isHydrated,user,refreshAuth]);const qty=cart.reduce((s,i)=>s+i.quantity,0);return <header className="sticky top-0 z-40 bg-[#FAF9F6]/95 backdrop-blur-md border-b border-[#E5E5E0]"><div className="max-w-[1360px] mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-4"><Link href="/" className="font-display text-xl font-bold tracking-tight text-[#141413] whitespace-nowrap">NorthBros Garage</Link><nav aria-label="Main Navigation" className="hidden md:flex items-center gap-7 text-sm font-medium text-[#52524E]">{NAV_ITEMS.map(i=><Link key={i.href} href={i.href} className={`whitespace-nowrap py-1 border-b-2 ${pathname===i.href||pathname.startsWith(i.href+'/')?'text-[#141413] border-[#141413] font-semibold':'border-transparent hover:text-[#141413]'}`}>{i.label}</Link>)}</nav><div className="hidden md:flex items-center gap-3"><Link href="/favorites" className="px-3.5 py-2 text-xs font-medium">Saved ({favorites.length})</Link><Link href="/cart" className="px-3.5 py-2 text-xs font-medium">Cart ({qty})</Link><Link href={user?(user.role==='admin'?'/admin':'/account'):'/auth/login'} className="px-4 py-2 text-xs font-semibold text-white bg-[#141413] rounded-lg">{!isHydrated?'…':user?(user.role==='admin'?'Admin':user.name.split(' ')[0]||'Account'):'Sign In'}</Link></div><div className="flex md:hidden items-center gap-2"><Link href="/cart" className="px-3 py-1.5 text-xs bg-neutral-200/70 rounded-md">Cart ({qty})</Link><button type="button" onClick={()=>setMobileMenuOpen(v=>!v)} className="p-2" aria-label="Toggle navigation menu">{mobileMenuOpen?<X className="w-5 h-5"/>:<Menu className="w-5 h-5"/>}</button></div></div>{mobileMenuOpen&&<div className="md:hidden bg-[#FAF9F6] border-b border-[#E5E5E0] px-4 pt-2 pb-5 space-y-3"><nav className="flex flex-col">{NAV_ITEMS.map(i=><Link key={i.href} href={i.href} onClick={()=>setMobileMenuOpen(false)} className="px-3 py-2.5 text-sm">{i.label}</Link>)}<Link href="/favorites" className="px-3 py-2.5 text-sm">Saved Parts ({favorites.length})</Link><Link href="/orders" className="px-3 py-2.5 text-sm">My Orders & Service Bookings</Link>{user?.role==='admin'&&<Link href="/admin" className="px-3 py-2.5 text-sm">Admin Dashboard</Link>}</nav><Link href={user?(user.role==='admin'?'/admin':'/account'):'/auth/login'} className="block w-full py-2.5 text-center text-xs font-semibold text-white bg-[#141413] rounded-lg">{!isHydrated?'Loading…':user?(user.role==='admin'?'Admin Dashboard':'Account'):'Sign In / Register'}</Link></div>}</header>}
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useStore } from '@/components/shared/StoreProvider';
+import { Menu, X } from 'lucide-react';
+
+const NAV_ITEMS = [
+  { href: '/parts', label: 'Car Parts' },
+  { href: '/services', label: 'Services' },
+  { href: '/categories', label: 'Categories' },
+  { href: '/brands', label: 'Brands' },
+  { href: '/vlogs', label: 'Daily Vlog' },
+];
+
+export function Header() {
+  const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { cart, favorites, user, isHydrated, refreshAuth } = useStore();
+
+  useEffect(() => {
+    if (isHydrated && !user && pathname !== '/auth/login' && pathname !== '/auth/register') {
+      void refreshAuth();
+    }
+  }, [pathname, isHydrated, user, refreshAuth]);
+
+  const qty = cart.reduce((s, i) => s + i.quantity, 0);
+  const userName = user?.name ? user.name.split(' ')[0] : user?.email?.split('@')[0] || 'Account';
+
+  return (
+    <header className="sticky top-0 z-40 bg-[#FAF9F6]/95 backdrop-blur-md border-b border-[#E5E5E0]">
+      <div className="max-w-[1360px] mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
+        <Link
+          href="/"
+          className="font-display text-xl font-bold tracking-tight text-[#141413] whitespace-nowrap"
+        >
+          NorthBros Garage
+        </Link>
+        <nav
+          aria-label="Main Navigation"
+          className="hidden md:flex items-center gap-7 text-sm font-medium text-[#52524E]"
+        >
+          {NAV_ITEMS.map((i) => (
+            <Link
+              key={i.href}
+              href={i.href}
+              className={`whitespace-nowrap py-1 border-b-2 ${
+                pathname === i.href || pathname.startsWith(i.href + '/')
+                  ? 'text-[#141413] border-[#141413] font-semibold'
+                  : 'border-transparent hover:text-[#141413]'
+              }`}
+            >
+              {i.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="hidden md:flex items-center gap-3">
+          <Link href="/favorites" className="px-3.5 py-2 text-xs font-medium">
+            Saved ({favorites.length})
+          </Link>
+          <Link href="/cart" className="px-3.5 py-2 text-xs font-medium">
+            Cart ({qty})
+          </Link>
+          <Link
+            href={user ? (user.role === 'admin' ? '/admin' : '/account') : '/auth/login'}
+            className="px-4 py-2 text-xs font-semibold text-white bg-[#141413] rounded-lg"
+          >
+            {!isHydrated ? '…' : user ? (user.role === 'admin' ? 'Admin' : userName) : 'Sign In'}
+          </Link>
+        </div>
+        <div className="flex md:hidden items-center gap-2">
+          <Link href="/cart" className="px-3 py-1.5 text-xs bg-neutral-200/70 rounded-md">
+            Cart ({qty})
+          </Link>
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((v) => !v)}
+            className="p-2"
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+      </div>
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-[#FAF9F6] border-b border-[#E5E5E0] px-4 pt-2 pb-5 space-y-3">
+          <nav className="flex flex-col">
+            {NAV_ITEMS.map((i) => (
+              <Link
+                key={i.href}
+                href={i.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2.5 text-sm"
+              >
+                {i.label}
+              </Link>
+            ))}
+            <Link
+              href="/favorites"
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-3 py-2.5 text-sm"
+            >
+              Saved Parts ({favorites.length})
+            </Link>
+            <Link
+              href="/orders"
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-3 py-2.5 text-sm"
+            >
+              My Orders & Service Bookings
+            </Link>
+            {user?.role === 'admin' && (
+              <Link
+                href="/admin"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2.5 text-sm"
+              >
+                Admin Dashboard
+              </Link>
+            )}
+          </nav>
+          <Link
+            href={user ? (user.role === 'admin' ? '/admin' : '/account') : '/auth/login'}
+            onClick={() => setMobileMenuOpen(false)}
+            className="block w-full py-2.5 text-center text-xs font-semibold text-white bg-[#141413] rounded-lg"
+          >
+            {!isHydrated ? 'Loading…' : user ? (user.role === 'admin' ? 'Admin Dashboard' : 'Account') : 'Sign In / Register'}
+          </Link>
+        </div>
+      )}
+    </header>
+  );
+}

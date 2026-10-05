@@ -64,7 +64,35 @@ export default function CheckoutPage() {
         customer_notes: notes.trim() || undefined, idempotency_key: checkoutIdempotencyKey,
         items: cart.map((c) => ({ product_id: c.product_id, quantity: c.quantity })),
       });
-      setConfirmedOrder({ id: result.id, order_number: result.order_number, customer_name: customerName.trim(), customer_email: customerEmail.trim(), customer_phone: customerPhone.trim(), shipping_address: shippingAddress.trim(), shipping_city: shippingCity.trim(), shipping_postal_code: shippingPostalCode.trim(), payment_method: paymentMethod, payment_status: 'Pending Verification', fulfillment_status: 'Processing', items: cart, subtotal: result.subtotal, shipping_fee: result.shipping_fee, discount_amount: 0, total_amount: result.total_amount, created_at: new Date().toISOString() });
+      setConfirmedOrder({
+        id: result.id,
+        order_number: result.order_number,
+        customer_name: customerName.trim(),
+        customer_email: customerEmail.trim(),
+        customer_phone: customerPhone.trim(),
+        shipping_address: shippingAddress.trim(),
+        shipping_city: shippingCity.trim(),
+        shipping_postal_code: shippingPostalCode.trim(),
+        payment_method: paymentMethod,
+        payment_status: 'Pending Verification',
+        fulfillment_status: 'Processing',
+        items: cart.map((c) => ({
+          product_id: c.product_id,
+          product_slug: c.product_slug,
+          sku: c.sku,
+          name: c.name,
+          brand_name: c.brand_name,
+          unit_price: c.unit_price,
+          quantity: c.quantity,
+          subtotal: c.unit_price * c.quantity,
+          image: c.image,
+        })),
+        subtotal: result.subtotal,
+        shipping_fee: result.shipping_fee,
+        discount_amount: 0,
+        total_amount: result.total_amount,
+        created_at: new Date().toISOString(),
+      });
     } catch (error) {
       setErrors({ submit: error instanceof Error ? error.message : 'Unable to place the order. Please try again.' });
     } finally {

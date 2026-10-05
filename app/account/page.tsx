@@ -54,7 +54,7 @@ export default function AccountDashboardPage() {
             Customer Account · {user.email}
           </p>
           <h1 className="font-display text-3xl font-bold text-[#141413]">
-            Welcome back, {user.name}
+            Welcome back, {user?.name || user?.email || 'Customer'}
           </h1>
         </div>
         <div className="flex items-center gap-3">

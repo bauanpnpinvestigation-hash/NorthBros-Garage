@@ -1,21 +1,37 @@
 import type {NextConfig} from 'next';
 
+const SUPABASE_URL = 'https://yrbelimellocykhqjjyw.supabase.co';
+const SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYmVsaW1lbGxvY3lraHFqanl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExOTg3MTYsImV4cCI6MjEwNjc3NDcxNn0.FDD_ZE3K9WvgfLjKkxI_mZlD3McTofflW0Dm1I7fFkE';
+
+process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_URL;
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },
   typescript: {
     ignoreBuildErrors: false,
   },
-  // Allow access to remote image placeholder.
   images: {
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'picsum.photos',
         port: '',
-        pathname: '/**', // This allows any path under the hostname
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'yrbelimellocykhqjjyw.supabase.co',
+        port: '',
+        pathname: '/**',
       },
     ],
   },
