@@ -16,13 +16,13 @@ interface StoreContextType {
   orders: Order[]; user: UserProfile | null; isHydrated: boolean;
   showToast: (text: string, type?: 'success'|'error'|'info') => void;
   toggleFavorite: (partId: string) => Promise<void>;
-  addToCart: (part: PartProduct, quantity?: number) => Promise<void>;
+  addToCart: (part: PartProduct, quantity?: number) => Promise<boolean>;
   updateCartQuantity: (productId: string, quantity: number) => Promise<void>;
   removeFromCart: (productId: string) => Promise<void>; clearCart: () => Promise<void>;
   createOrder: (payload: {
     recipient_name:string; phone:string; address_line:string; barangay?:string;
     city?:string; province?:string; postal_code?:string; payment_method_code:string;
-    customer_notes?:string; items:Array<{product_id:string;quantity:number}>;
+    customer_notes?:string; idempotency_key:string; items:Array<{product_id:string;quantity:number}>;
   }) => Promise<{id:string;order_number:string;subtotal:number;shipping_fee:number;total_amount:number}>;
   createServiceBooking: (payload: {
     service_id:string; branch_id?:string; customer_vehicle_id?:string;
@@ -200,13 +200,13 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
   };
 
   const addToCart=async(part:PartProduct,quantity=1)=>{
-    if(part.stock<=0||part.status!=='Active'){showToast('This part is currently out of stock.','error');return;}
+    if(part.stock<=0||part.status!=='Active'){showToast('This part is currently out of stock.','error');return false;}
     try{const c=sb();if(!c)throw new Error('Supabase is not configured.');const cartId=await ensureCart();
       const {data:existing}=await c.from('cart_items').select('id,quantity').eq('cart_id',cartId).eq('product_id',part.id).maybeSingle();
       const next=Math.min(part.stock,(existing?.quantity||0)+quantity);
       const r=existing?await c.from('cart_items').update({quantity:next,unit_price:part.price}).eq('id',existing.id):await c.from('cart_items').insert({cart_id:cartId,product_id:part.id,quantity:Math.min(part.stock,quantity),unit_price:part.price});
-      if(r.error)throw r.error;await loadCustomerData(user!.id);showToast('Added to cart.');
-    }catch(e:any){showToast(e.message||'Unable to update cart.','error');}
+      if(r.error)throw r.error;await loadCustomerData(user!.id);showToast('Added to cart.');return true;
+    }catch(e:any){showToast(e.message||'Unable to update cart.','error');return false;}
   };
 
   const updateCartQuantity=async(productId:string,quantity:number)=>{
