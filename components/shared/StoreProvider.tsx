@@ -251,17 +251,7 @@ function mapService(row: any): AutomotiveService {
     slug: row.slug,
     service_code: row.slug,
     name: row.name,
-    category:
-      ({
-        Maintenance: 'Periodic Maintenance',
-        Repair: 'Brakes & Chassis',
-        Diagnostics: 'Diagnostics & A/C',
-        'Air Conditioning': 'Diagnostics & A/C',
-        'Tires & Wheels': 'Tires & Alignment',
-        Electrical: 'Electrical & Battery',
-        Installation: 'Brakes & Chassis',
-        Detailing: 'Periodic Maintenance',
-      } as any)[row.service_categories?.name] || 'Periodic Maintenance',
+    category: row.service_categories?.name || 'Uncategorized',
     price: Number(row.price || 0),
     duration_minutes: Number(row.duration_minutes || 0),
     duration_label: row.duration_minutes
@@ -271,7 +261,7 @@ function mapService(row: any): AutomotiveService {
       row.is_active && row.is_bookable ? 'Available' : 'Unavailable',
     description: row.description || row.short_description || '',
     included_operations: [],
-    recommended_interval: 'Every 10,000 km or 6 months',
+    recommended_interval: row.recommended_interval || '',
     image_url: resolveDisplayImageUrl(
       publicStorageUrl('service-images', primary?.storage_path),
       '/images/hero_parts_workshop.jpg'
@@ -1347,18 +1337,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) throw new Error('Supabase is not configured.');
-    const categoryMap: any = {
-      'Periodic Maintenance': 'Maintenance',
-      'Brakes & Chassis': 'Repair',
-      'Electrical & Battery': 'Electrical',
-      'Diagnostics & A/C': 'Diagnostics',
-      'Tires & Alignment': 'Tires & Wheels',
-    };
     const cat = (
       await c
         .from('service_categories')
         .select('id')
-        .eq('name', categoryMap[srv.category] || srv.category)
+        .eq('name', srv.category)
+        .eq('is_active', true)
         .maybeSingle()
     ).data;
     const r = await c
@@ -1369,9 +1353,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         category_id: cat?.id || null,
         description: srv.description,
         short_description: srv.description,
-        price: srv.price,
-        duration_minutes: srv.duration_minutes,
-        is_bookable: true,
+        price: srv.price ?? 0,
+        duration_minutes: srv.duration_minutes || null,
+        is_bookable: srv.is_bookable !== false,
+        requires_inspection: srv.requires_inspection === true,
         is_active: true,
       })
       .select('*')
@@ -1411,7 +1396,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (updates.slug !== undefined) patch.slug = updates.slug;
     if (updates.price !== undefined) patch.price = updates.price;
     if (updates.duration_minutes !== undefined)
-      patch.duration_minutes = updates.duration_minutes;
+      patch.duration_minutes = updates.duration_minutes || null;
+    if (updates.category !== undefined) {
+      const cat = (await c.from('service_categories').select('id').eq('name', updates.category).eq('is_active', true).maybeSingle()).data;
+      patch.category_id = cat?.id || null;
+    }
     if (updates.description !== undefined) {
       patch.description = updates.description;
       patch.short_description = updates.description;
@@ -1608,7 +1597,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addVlog = async (vlog: any): Promise<VlogPost> => {
-    if (!user) throw new Error('Please sign in to post a daily vlog.');
+    if (!user || user.role !== 'admin') throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) throw new Error('Supabase is not configured.');
     const types: any = {
@@ -1667,7 +1656,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateVlog = async (id: string, updates: Partial<VlogPost>) => {
-    if (!user) throw new Error('Please sign in to update a vlog.');
+    if (!user || user.role !== 'admin') throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) throw new Error('Supabase is not configured.');
     const types: any = {
@@ -1718,7 +1707,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteVlog = async (id: string) => {
-    if (!user) return;
+    if (!user || user.role !== 'admin') {
+      showToast('Administrator authorization required.', 'error');
+      return;
+    }
     const c = sb();
     if (!c) return;
     const r = await c
