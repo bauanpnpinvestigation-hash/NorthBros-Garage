@@ -13,7 +13,7 @@ export interface AppSetting {
 export type ProductStatus = 'Active' | 'Out of Stock' | 'Archived';
 export type OrderFulfillmentStatus = 'Processing' | 'Packed' | 'Shipped' | 'Delivered' | 'Cancelled';
 export type PaymentStatus = 'Pending Verification' | 'Paid' | 'COD Pending';
-export type PaymentMethodType = 'GCash' | 'Maya' | 'GoTyme / QR Ph' | 'Cash on Delivery (COD)';
+export type PaymentMethodType = string;
 export type ServiceAvailability = 'Available' | 'Limited Slots' | 'Unavailable';
 export type ServiceBookingStatus = 'Pending' | 'Confirmed' | 'In Service Bay' | 'Completed' | 'Cancelled';
 
@@ -55,9 +55,9 @@ export interface Brand {
   id: string;
   name: string;
   slug: string;
-  country: string;
-  specialty: string;
-  warranty_policy: string;
+  country?: string;
+  specialty?: string;
+  warranty_policy?: string;
   description: string;
   image_url?: string;
 }
@@ -67,7 +67,7 @@ export interface Category {
   name: string;
   slug: string;
   description: string;
-  common_parts: string;
+  common_parts?: string;
   image_url?: string;
 }
 
@@ -76,7 +76,7 @@ export interface AutomotiveService {
   slug: string;
   service_code: string;
   name: string;
-  category: 'Periodic Maintenance' | 'Brakes & Chassis' | 'Electrical & Battery' | 'Diagnostics & A/C' | 'Tires & Alignment';
+  category: string;
   price: number;
   duration_minutes: number;
   duration_label: string;
