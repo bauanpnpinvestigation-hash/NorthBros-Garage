@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { isStaffRole } from '@/lib/auth/role';
 
 type UploadModule =
   | 'branding'
@@ -45,6 +47,24 @@ function cleanEnvValue(raw?: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const supabase = await createServerSupabaseClient();
+    if (!supabase) {
+      return NextResponse.json({ configured: false, error: 'Supabase is not configured.' }, { status: 503 });
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ configured: false, error: 'Authentication required.' }, { status: 401 });
+    }
+
+    const profileResult = await supabase
+      .from('profiles')
+      .select('role,is_active')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (profileResult.error || !profileResult.data?.is_active) {
+      return NextResponse.json({ configured: false, error: 'Active account required.' }, { status: 403 });
+    }
     const formData = await req.formData();
     const file = formData.get('file');
 
@@ -56,6 +76,9 @@ export async function POST(req: NextRequest) {
     }
 
     const module = asUploadModule(formData.get('module'));
+    if (module !== 'avatars' && !isStaffRole(profileResult.data.role)) {
+      return NextResponse.json({ configured: false, error: 'Staff authorization required for this upload.' }, { status: 403 });
+    }
     const isVideo = file.type.startsWith('video/');
     const isImage = file.type.startsWith('image/');
 
@@ -101,7 +124,9 @@ export async function POST(req: NextRequest) {
     }
 
     const resourceType = isVideo ? 'video' : 'image';
-    const folder = `NorthBros Garage/${module}`;
+    const folderPrefix = cleanEnvValue(process.env.CLOUDINARY_FOLDER_PREFIX) || 'store';
+    const safeFolderPrefix = folderPrefix.replace(/[^a-zA-Z0-9_./-]/g, '').replace(/^\/+|\/+$/g, '') || 'store';
+    const folder = `${safeFolderPrefix}/${module}`;
     const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${encodeURIComponent(
       cloudName
     )}/${resourceType}/upload`;
