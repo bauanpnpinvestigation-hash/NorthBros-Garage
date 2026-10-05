@@ -1,3 +1,15 @@
+
+export interface AppSetting {
+  id: string;
+  category: string;
+  setting_key: string;
+  setting_value: unknown;
+  is_public: boolean;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type ProductStatus = 'Active' | 'Out of Stock' | 'Archived';
 export type OrderFulfillmentStatus = 'Processing' | 'Packed' | 'Shipped' | 'Delivered' | 'Cancelled';
 export type PaymentStatus = 'Pending Verification' | 'Paid' | 'COD Pending';
