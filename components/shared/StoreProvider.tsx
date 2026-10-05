@@ -1540,6 +1540,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const wipeProductAndNestedData = async (c: any, productId: string) => {
+    // Never delete or rewrite order_items: historical orders must remain auditable.
     const childTables = [
       'cart_items',
       'inventory_reservations',
@@ -1550,32 +1551,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       'product_reviews',
       'favorites',
       'promotion_products',
-      'order_items',
     ];
     for (const table of childTables) {
-      await c.from(table).delete().eq('product_id', productId);
+      const result = await c.from(table).delete().eq('product_id', productId);
+      if (result.error) throw result.error;
     }
+
     const delRes = await c
       .from('products')
       .delete()
       .eq('id', productId)
       .select('id');
-    if (delRes.error || !delRes.data || delRes.data.length === 0) {
-      await c.from('order_items').update({ product_id: null }).eq('product_id', productId);
-      const retryDel = await c
+
+    if (delRes.error) {
+      // A product referenced by historical order_items is archived instead.
+      const fallback = await c
         .from('products')
-        .delete()
-        .eq('id', productId)
-        .select('id');
-      if (retryDel.error || !retryDel.data || retryDel.data.length === 0) {
-        const fallback = await c
-          .from('products')
-          .update({ is_active: false, stock_status: 'discontinued' })
-          .eq('id', productId);
-        if (fallback.error && delRes.error) {
-          throw delRes.error;
-        }
-      }
+        .update({ is_active: false, stock_status: 'discontinued' })
+        .eq('id', productId);
+      if (fallback.error) throw delRes.error;
     }
   };
 
@@ -1831,14 +1825,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) throw new Error('Supabase is not configured.');
-    const { data: brandProducts } = await c
+    const { error: detachError } = await c
       .from('products')
-      .select('id')
+      .update({ brand_id: null })
       .eq('brand_id', id);
-    for (const prod of brandProducts || []) {
-      await wipeProductAndNestedData(c, prod.id);
-    }
-    await c.from('products').update({ brand_id: null }).eq('brand_id', id);
+    if (detachError) throw detachError;
     const delRes = await c.from('brands').delete().eq('id', id).select('id');
     if (delRes.error || !delRes.data || delRes.data.length === 0) {
       const fallback = await c
@@ -1849,7 +1840,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
     setBrands((prev) => prev.filter((b) => b.id !== id));
     await loadCatalog();
-    showToast('Brand and all related data permanently deleted.');
+    showToast('Brand removed; product and order history preserved.');
   };
 
   const addCategory = async (cat: any) => {
@@ -1892,15 +1883,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) throw new Error('Supabase is not configured.');
-    const { data: catProducts } = await c
+    const { error: detachError } = await c
       .from('products')
-      .select('id')
+      .update({ category_id: null })
       .eq('category_id', id);
-    for (const prod of catProducts || []) {
-      await wipeProductAndNestedData(c, prod.id);
-    }
-    await c.from('products').update({ category_id: null }).eq('category_id', id);
-    await c.from('categories').update({ parent_id: null }).eq('parent_id', id);
+    if (detachError) throw detachError;
+    const { error: parentError } = await c
+      .from('categories')
+      .update({ parent_id: null })
+      .eq('parent_id', id);
+    if (parentError) throw parentError;
     const delRes = await c
       .from('categories')
       .delete()
@@ -1915,7 +1907,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
     setCategories((prev) => prev.filter((cat) => cat.id !== id));
     await loadCatalog();
-    showToast('Category and all related data permanently deleted.');
+    showToast('Category removed; product and order history preserved.');
   };
 
   const addVlog = async (vlog: any): Promise<VlogPost> => {
