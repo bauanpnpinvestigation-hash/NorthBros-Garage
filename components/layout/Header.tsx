@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useStore } from '@/components/shared/StoreProvider';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { Menu, X, LogOut } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -19,6 +20,8 @@ export function Header() {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { cart, favorites, user, isHydrated, refreshAuth, logout } = useStore();
+  const { getString } = useAppSettings();
+  const siteName = getString('branding.site_name', '{siteName}');
 
   useEffect(() => {
     if (isHydrated && !user) {
@@ -45,7 +48,7 @@ export function Header() {
           href="/"
           className="font-display text-xl font-bold tracking-tight text-[#141413] whitespace-nowrap"
         >
-          NorthBros Garage
+          {siteName}
         </Link>
         <nav
           aria-label="Main Navigation"
