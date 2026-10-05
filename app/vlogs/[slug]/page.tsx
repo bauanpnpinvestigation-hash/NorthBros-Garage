@@ -6,7 +6,14 @@ import Link from 'next/link';
 import { useStore } from '@/components/shared/StoreProvider';
 import { PartCard } from '@/components/parts/PartCard';
 import { formatDate, formatNumber } from '@/lib/utils/format';
-import { Play, Pause, ThumbsUp, MessageSquare } from 'lucide-react';
+import {
+  getFacebookEmbedUrl,
+  getYouTubeEmbedUrl,
+  isDirectVideoUrl,
+  isFacebookVideoUrl,
+  resolveDisplayImageUrl,
+} from '@/lib/utils/media';
+import { Play, Pause, ThumbsUp, MessageSquare, ExternalLink } from 'lucide-react';
 
 export default function VlogDetailPage({
   params,
@@ -16,7 +23,7 @@ export default function VlogDetailPage({
   const { slug } = use(params);
   const { vlogs, parts, likeVlog, addVlogComment, user } = useStore();
 
-  const vlog = vlogs.find((v) => v.slug === slug);
+  const vlog = vlogs.find((v) => v.slug === slug || v.id === slug);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeTimestamp, setActiveTimestamp] = useState('00:00');
   const [commentAuthor, setCommentAuthor] = useState(user?.name || '');
@@ -39,6 +46,16 @@ export default function VlogDetailPage({
   }
 
   const featuredPart = parts.find((p) => p.slug === vlog.featured_part_slug);
+  const activeMediaUrl = vlog.video_url || vlog.thumbnail_url;
+  const ytEmbed = getYouTubeEmbedUrl(activeMediaUrl, true);
+  const fbEmbed = isFacebookVideoUrl(activeMediaUrl)
+    ? getFacebookEmbedUrl(activeMediaUrl)
+    : null;
+  const directVideo = isDirectVideoUrl(activeMediaUrl);
+  const thumbSrc = resolveDisplayImageUrl(
+    vlog.thumbnail_url || vlog.video_url,
+    '/images/hero_parts_workshop.jpg'
+  );
 
   const handleCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,67 +87,122 @@ export default function VlogDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         <div className="lg:col-span-8 space-y-8">
           <div className="bg-[#141413] rounded-xl overflow-hidden border border-[#E5E5E0] text-white">
-            <div className="relative aspect-[16/9] w-full">
-              <Image
-                src={vlog.thumbnail_url}
-                alt={vlog.title}
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 66vw"
-                referrerPolicy="no-referrer"
-                className={`object-cover transition-opacity duration-300 ${
-                  isPlaying ? 'opacity-60' : 'opacity-85'
-                }`}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
-
-              <button
-                type="button"
-                onClick={() => setIsPlaying((prev) => !prev)}
-                className="absolute inset-0 flex flex-col items-center justify-center gap-3 cursor-pointer group"
-              >
-                <span className="w-16 h-16 rounded-full bg-white text-[#141413] flex items-center justify-center shadow-xl group-hover:scale-105 transition-transform">
-                  {isPlaying ? (
-                    <Pause className="w-6 h-6 fill-current" />
+            <div className="relative aspect-[16/9] w-full bg-black">
+              {ytEmbed ? (
+                <iframe
+                  src={ytEmbed}
+                  title={vlog.title}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : fbEmbed ? (
+                <iframe
+                  src={fbEmbed}
+                  title={vlog.title}
+                  className="w-full h-full"
+                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              ) : directVideo ? (
+                <video
+                  src={activeMediaUrl}
+                  poster={thumbSrc}
+                  controls
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <>
+                  {thumbSrc.startsWith('data:') ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={thumbSrc}
+                      alt={vlog.title}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
-                    <Play className="w-6 h-6 fill-current ml-0.5" />
+                    <Image
+                      src={thumbSrc}
+                      alt={vlog.title}
+                      fill
+                      priority
+                      sizes="(max-width: 1024px) 100vw, 66vw"
+                      referrerPolicy="no-referrer"
+                      className={`object-cover transition-opacity duration-300 ${
+                        isPlaying ? 'opacity-90' : 'opacity-95'
+                      }`}
+                    />
                   )}
-                </span>
-                <span className="px-3 py-1 bg-black/75 rounded text-xs font-mono tabular-nums text-neutral-200">
-                  {isPlaying
-                    ? `Playing Chapter @ ${activeTimestamp} / ${vlog.duration}`
-                    : `Watch Episode #${vlog.episode_number} (${vlog.duration})`}
-                </span>
-              </button>
+                  {vlog.video_highlights && vlog.video_highlights.length > 0 && (
+                    <>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                      <button
+                        type="button"
+                        onClick={() => setIsPlaying((prev) => !prev)}
+                        className="absolute inset-0 flex flex-col items-center justify-center gap-3 cursor-pointer group"
+                      >
+                        <span className="w-16 h-16 rounded-full bg-white text-[#141413] flex items-center justify-center shadow-xl group-hover:scale-105 transition-transform">
+                          {isPlaying ? (
+                            <Pause className="w-6 h-6 fill-current" />
+                          ) : (
+                            <Play className="w-6 h-6 fill-current ml-0.5" />
+                          )}
+                        </span>
+                        <span className="px-3 py-1 bg-black/75 rounded text-xs font-mono tabular-nums text-neutral-200">
+                          {isPlaying
+                            ? `Playing Chapter @ ${activeTimestamp}`
+                            : `Watch Episode #${vlog.episode_number}`}
+                        </span>
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
             </div>
 
-            <div className="p-4 sm:p-5 bg-neutral-900 border-t border-neutral-800 space-y-3">
-              <p className="text-xs font-semibold text-neutral-400">
-                Workshop Chapters (Click to jump):
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {vlog.video_highlights.map((hl) => (
-                  <button
-                    key={hl.timestamp}
-                    type="button"
-                    onClick={() => {
-                      setActiveTimestamp(hl.timestamp);
-                      setIsPlaying(true);
-                    }}
-                    className={`text-left px-3 py-2 rounded-lg text-xs flex items-center gap-2.5 transition-colors cursor-pointer ${
-                      activeTimestamp === hl.timestamp && isPlaying
-                        ? 'bg-white text-[#141413] font-semibold'
-                        : 'bg-neutral-800/80 text-neutral-300 hover:bg-neutral-800'
-                    }`}
-                  >
-                    <span className="font-mono tabular-nums shrink-0">
-                      {hl.timestamp}
-                    </span>
-                    <span className="truncate">{hl.label}</span>
-                  </button>
-                ))}
+            {vlog.video_url && (
+              <div className="px-4 py-2.5 bg-neutral-950 border-t border-neutral-800 flex items-center justify-between text-xs text-neutral-400">
+                <span className="truncate">Media source: {vlog.video_url}</span>
+                <a
+                  href={vlog.video_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-white font-semibold hover:underline shrink-0 ml-3"
+                >
+                  Open Original Link <ExternalLink className="w-3.5 h-3.5" />
+                </a>
               </div>
-            </div>
+            )}
+
+            {vlog.video_highlights && vlog.video_highlights.length > 0 && (
+              <div className="p-4 sm:p-5 bg-neutral-900 border-t border-neutral-800 space-y-3">
+                <p className="text-xs font-semibold text-neutral-400">
+                  Workshop Chapters:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {vlog.video_highlights.map((hl) => (
+                    <button
+                      key={hl.timestamp}
+                      type="button"
+                      onClick={() => {
+                        setActiveTimestamp(hl.timestamp);
+                        setIsPlaying(true);
+                      }}
+                      className={`text-left px-3 py-2 rounded-lg text-xs flex items-center gap-2.5 transition-colors cursor-pointer ${
+                        activeTimestamp === hl.timestamp && isPlaying
+                          ? 'bg-white text-[#141413] font-semibold'
+                          : 'bg-neutral-800/80 text-neutral-300 hover:bg-neutral-800'
+                      }`}
+                    >
+                      <span className="font-mono tabular-nums shrink-0">
+                        {hl.timestamp}
+                      </span>
+                      <span className="truncate">{hl.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="bg-white border border-[#E5E5E0] rounded-xl p-6 sm:p-8 space-y-6">
@@ -138,8 +210,7 @@ export default function VlogDetailPage({
               <div className="space-y-1.5">
                 <p className="text-xs text-[#6E6E68] tabular-nums">
                   Episode #{vlog.episode_number} · {vlog.category} · Published{' '}
-                  {formatDate(vlog.published_at)} ·{' '}
-                  {formatNumber(vlog.views_count)} views
+                  {formatDate(vlog.published_at)}
                 </p>
                 <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#141413] leading-tight">
                   {vlog.title}

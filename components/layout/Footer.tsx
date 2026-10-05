@@ -1,7 +1,11 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
+import { useStore } from '@/components/shared/StoreProvider';
 
 export function Footer() {
+  const { user } = useStore();
   return (
     <footer className="bg-[#141413] text-[#FAF9F6] border-t border-neutral-800 mt-20">
       <div className="max-w-[1360px] mx-auto px-4 sm:px-8 py-16">
@@ -95,11 +99,13 @@ export function Footer() {
                   About Our Workshop
                 </Link>
               </li>
-              <li>
-                <Link href="/admin" className="hover:text-white transition-colors">
-                  Store Admin Console
-                </Link>
-              </li>
+              {user?.role === 'admin' && (
+                <li>
+                  <Link href="/admin" className="hover:text-white transition-colors">
+                    Store Admin Console
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link href="/privacy" className="hover:text-white transition-colors">
                   Privacy Policy

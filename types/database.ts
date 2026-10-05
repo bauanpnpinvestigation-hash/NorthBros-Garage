@@ -47,6 +47,7 @@ export interface Brand {
   specialty: string;
   warranty_policy: string;
   description: string;
+  image_url?: string;
 }
 
 export interface Category {
@@ -55,6 +56,7 @@ export interface Category {
   slug: string;
   description: string;
   common_parts: string;
+  image_url?: string;
 }
 
 export interface AutomotiveService {
@@ -158,6 +160,8 @@ export interface VlogPost {
   summary: string;
   content: string[];
   thumbnail_url: string;
+  video_url?: string;
+  media_type?: 'image' | 'video';
   video_highlights: { timestamp: string; label: string }[];
   featured_part_slug?: string;
   featured_part_name?: string;

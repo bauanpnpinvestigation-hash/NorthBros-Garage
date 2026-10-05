@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useStore } from '@/components/shared/StoreProvider';
 
 const ADMIN_LINKS = [
@@ -12,6 +12,7 @@ const ADMIN_LINKS = [
   { href: '/admin/services', label: 'Services' },
   { href: '/admin/orders', label: 'Orders' },
   { href: '/admin/appointments', label: 'Service Bookings' },
+  { href: '/admin/customers', label: 'Customers' },
   { href: '/admin/brands', label: 'Brands' },
   { href: '/admin/categories', label: 'Categories' },
   { href: '/vlogs', label: 'Daily Vlogs' },
@@ -29,7 +30,50 @@ export function AdminShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { user } = useStore();
+  const router = useRouter();
+  const { user, isHydrated, refreshAuth, logout } = useStore();
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (user) {
+      setAuthChecked(true);
+      if (user.role !== 'admin') {
+        router.replace('/account');
+      }
+      return;
+    }
+    let active = true;
+    refreshAuth().finally(() => {
+      if (active) setAuthChecked(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [isHydrated, user, refreshAuth, router]);
+
+  useEffect(() => {
+    if (isHydrated && authChecked) {
+      if (!user) {
+        router.replace('/auth/login');
+      } else if (user.role !== 'admin') {
+        router.replace('/account');
+      }
+    }
+  }, [isHydrated, authChecked, user, router]);
+
+  if (!isHydrated || (!user && !authChecked)) {
+    return (
+      <div className="max-w-[1360px] mx-auto px-4 sm:px-8 py-20 text-center text-xs text-[#6E6E68]">
+        Loading administrator console…
+      </div>
+    );
+  }
+
+  if (!user || user.role !== 'admin') {
+    return null;
+  }
+
   const displayName = user?.name || user?.email || 'Admin';
   const roleName = user?.role || 'admin';
 
@@ -47,7 +91,8 @@ export function AdminShell({
                 key={i.href}
                 href={i.href}
                 className={`px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap ${
-                  pathname === i.href
+                  pathname === i.href ||
+                  (i.href === '/admin/parts' && pathname.startsWith('/admin/products'))
                     ? 'bg-[#141413] text-white font-semibold'
                     : 'text-[#52524E] hover:bg-[#FAF9F6]'
                 }`}
@@ -56,8 +101,21 @@ export function AdminShell({
               </Link>
             ))}
           </nav>
-          <div className="hidden lg:block pt-3 border-t border-[#E5E5E0] text-[11px] text-[#6E6E68]">
-            Signed in as <strong className="text-[#141413]">{displayName}</strong> ({roleName})
+          <div className="pt-3 border-t border-[#E5E5E0] flex items-center justify-between gap-2 text-[11px] text-[#6E6E68]">
+            <span className="truncate">
+              Signed in as <strong className="text-[#141413]">{displayName}</strong> ({roleName})
+            </span>
+            <button
+              type="button"
+              onClick={async () => {
+                await logout();
+                router.push('/auth/login');
+                router.refresh();
+              }}
+              className="text-red-700 font-semibold hover:underline shrink-0 cursor-pointer"
+            >
+              Sign Out
+            </button>
           </div>
         </aside>
         <div className="lg:col-span-9 space-y-8">

@@ -1,5 +1,9 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import {
+  isVideoMediaUrl,
+  resolveDisplayImageUrl,
+} from '@/lib/utils/media';
+import {
   AutomotiveService,
   Brand,
   Category,
@@ -12,11 +16,15 @@ import {
 
 function storageUrl(bucket: string, path?: string | null) {
   if (!path) return '/images/hero_parts_workshop.jpg';
-  if (path.startsWith('/') || /^https?:\/\//i.test(path)) return path;
+  if (
+    path.startsWith('/') ||
+    /^https?:\/\//i.test(path) ||
+    /^data:/i.test(path)
+  ) {
+    return path;
+  }
   const u = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  return u
-    ? `${u}/storage/v1/object/public/${bucket}/${path}`
-    : path;
+  return u ? `${u}/storage/v1/object/public/${bucket}/${path}` : path;
 }
 
 function mapProduct(row: any): PartProduct {
@@ -56,6 +64,20 @@ function mapProduct(row: any): PartProduct {
       };
     }
   );
+  const resolvedPrimary = resolveDisplayImageUrl(
+    storageUrl('product-images', primary?.storage_path),
+    '/images/part_brake_pad.jpg'
+  );
+  const resolvedGallery =
+    imgs.length > 0
+      ? imgs.map((x: any) =>
+          resolveDisplayImageUrl(
+            storageUrl('product-images', x.storage_path),
+            resolvedPrimary
+          )
+        )
+      : [resolvedPrimary];
+
   return {
     id: row.id,
     slug: row.slug,
@@ -75,10 +97,8 @@ function mapProduct(row: any): PartProduct {
     rating: 4.9,
     review_count: 0,
     is_featured: !!row.is_featured,
-    primary_image: storageUrl('product-images', primary?.storage_path),
-    gallery_images: imgs.map((x: any) =>
-      storageUrl('product-images', x.storage_path)
-    ),
+    primary_image: resolvedPrimary,
+    gallery_images: resolvedGallery,
     description: row.description || row.short_description || '',
     specifications: {},
     compatibility,
@@ -205,6 +225,12 @@ export async function getPartBySlug(
 }
 
 function mapService(row: any): AutomotiveService {
+  const imgs = Array.isArray(row.service_images)
+    ? [...row.service_images].sort(
+        (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+      )
+    : [];
+  const primary = imgs.find((x: any) => x.is_primary) || imgs[0];
   return {
     id: row.id,
     slug: row.slug,
@@ -221,9 +247,9 @@ function mapService(row: any): AutomotiveService {
     description: row.description || row.short_description || '',
     included_operations: [],
     recommended_interval: '',
-    image_url: storageUrl(
-      'service-images',
-      row.service_images?.find((x: any) => x.is_primary)?.storage_path
+    image_url: resolveDisplayImageUrl(
+      storageUrl('service-images', primary?.storage_path),
+      '/images/hero_parts_workshop.jpg'
     ),
   } as AutomotiveService;
 }
@@ -275,6 +301,9 @@ export async function getBrands(): Promise<(Brand & { part_count: number })[]> {
         specialty: '',
         warranty_policy: '',
         description: b.description || '',
+        image_url: b.logo_url
+          ? resolveDisplayImageUrl(storageUrl('product-images', b.logo_url))
+          : undefined,
         part_count: Array.isArray(b.products) ? b.products.length : 0,
       }));
 }
@@ -298,6 +327,9 @@ export async function getBrandBySlug(slug: string): Promise<Brand | null> {
         specialty: '',
         warranty_policy: '',
         description: data.description || '',
+        image_url: data.logo_url
+          ? resolveDisplayImageUrl(storageUrl('product-images', data.logo_url))
+          : undefined,
       };
 }
 
@@ -320,6 +352,9 @@ export async function getCategories(): Promise<
         slug: x.slug,
         description: x.description || '',
         common_parts: '',
+        image_url: x.image_url
+          ? resolveDisplayImageUrl(storageUrl('product-images', x.image_url))
+          : undefined,
         part_count: Array.isArray(x.products) ? x.products.length : 0,
       }));
 }
@@ -343,6 +378,9 @@ export async function getCategoryBySlug(
         slug: data.slug,
         description: data.description || '',
         common_parts: '',
+        image_url: data.image_url
+          ? resolveDisplayImageUrl(storageUrl('product-images', data.image_url))
+          : undefined,
       };
 }
 
@@ -357,36 +395,58 @@ export async function getVlogs(): Promise<VlogPost[]> {
     .eq('is_published', true)
     .order('published_at', { ascending: false });
   if (error) return [];
-  return (data || []).map(
-    (x: any, i) =>
-      ({
-        id: x.id,
-        slug: x.id,
-        episode_number: data.length - i,
-        title: x.title || 'NorthBros Garage Workshop Update',
-        published_at: x.published_at || x.created_at,
-        duration: '',
-        author_name: 'NorthBros Garage',
-        author_role: 'Workshop',
-        category: 'Service Bay Vlog',
-        summary: x.caption || '',
-        content: x.caption ? [x.caption] : [],
-        thumbnail_url: storageUrl(
-          'daily-shop',
-          x.daily_post_media?.find((m: any) => m.media_type === 'image')
-            ?.storage_path
-        ),
-        video_highlights: [],
-        views_count: 0,
-        likes_count: x.daily_post_likes?.length || 0,
-        comments: (x.daily_post_comments || []).map((c: any) => ({
-          id: c.id,
-          user_name: c.profiles?.full_name || 'Customer',
-          created_at: c.created_at,
-          text: c.content,
-        })),
-      } as VlogPost)
-  );
+  return (data || []).map((x: any, i) => {
+    const mediaList = Array.isArray(x.daily_post_media)
+      ? [...x.daily_post_media].sort(
+          (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+        )
+      : [];
+    const videoRow = mediaList.find((m: any) => m.media_type === 'video');
+    const imageRow =
+      mediaList.find((m: any) => m.media_type === 'image') || mediaList[0];
+
+    const rawVideo =
+      videoRow?.storage_path ||
+      (imageRow?.storage_path && isVideoMediaUrl(imageRow.storage_path)
+        ? imageRow.storage_path
+        : undefined);
+    const rawThumb =
+      imageRow?.thumbnail_path ||
+      (imageRow?.storage_path && !isVideoMediaUrl(imageRow.storage_path)
+        ? imageRow.storage_path
+        : undefined) ||
+      videoRow?.thumbnail_path ||
+      rawVideo;
+
+    return {
+      id: x.id,
+      slug: x.id,
+      episode_number: data.length - i,
+      title: x.title || 'NorthBros Garage Workshop Update',
+      published_at: x.published_at || x.created_at,
+      duration: '14:30',
+      author_name: 'NorthBros Garage',
+      author_role: 'Workshop',
+      category: 'Service Bay Vlog',
+      summary: x.caption || '',
+      content: x.caption ? [x.caption] : [],
+      thumbnail_url: resolveDisplayImageUrl(
+        storageUrl('daily-shop', rawThumb),
+        '/images/hero_parts_workshop.jpg'
+      ),
+      video_url: rawVideo ? storageUrl('daily-shop', rawVideo) : undefined,
+      media_type: rawVideo ? 'video' : 'image',
+      video_highlights: [],
+      views_count: 0,
+      likes_count: x.daily_post_likes?.length || 0,
+      comments: (x.daily_post_comments || []).map((c: any) => ({
+        id: c.id,
+        user_name: c.profiles?.full_name || 'Customer',
+        created_at: c.created_at,
+        text: c.content,
+      })),
+    } as VlogPost;
+  });
 }
 
 export async function getInitialServiceBookings(): Promise<ServiceBooking[]> {

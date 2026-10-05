@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { resolveUserRole } from '@/lib/auth/role';
 
 function authErrorMessage(message: string) {
   const normalized = message.toLowerCase();
@@ -40,28 +41,28 @@ export async function loginAction(formData: FormData) {
     password,
   });
 
-  if (error) {
-    redirect(`/auth/login?error=${encodeURIComponent(authErrorMessage(error.message))}`);
+  if (error || !data.user) {
+    redirect(
+      `/auth/login?error=${encodeURIComponent(
+        authErrorMessage(error?.message || 'Invalid login credentials')
+      )}`
+    );
   }
 
-  if (data.user) {
-    const isAdmin =
-      data.user.app_metadata?.role === 'admin' ||
-      data.user.app_metadata?.is_admin === true;
-
-    if (isAdmin) {
-      redirect('/admin');
-    }
-
-    const { data: profile } = await supabase
+  let profile = null;
+  if (data.user.app_metadata?.role !== 'admin') {
+    const { data: profileRow } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', data.user.id)
       .maybeSingle();
+    profile = profileRow;
+  }
 
-    if (profile?.role === 'admin') {
-      redirect('/admin');
-    }
+  const role = resolveUserRole(data.user, profile);
+
+  if (role === 'admin') {
+    redirect('/admin');
   }
 
   redirect('/account');

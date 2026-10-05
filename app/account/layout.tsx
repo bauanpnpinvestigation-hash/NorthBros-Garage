@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
-import { requireAdmin } from '@/lib/auth/server';
+import { requireUser } from '@/lib/auth/server';
 
-export default async function AdminLayout({
+export default async function AccountLayout({
   children,
 }: Readonly<{
   children: ReactNode;
 }>) {
-  await requireAdmin();
+  await requireUser();
 
   return children;
 }
