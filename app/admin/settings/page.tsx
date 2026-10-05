@@ -103,6 +103,26 @@ export default function AdminSettingsPage() {
       'footer.payments_label':'Configured payment methods',
       'footer.copyright':'',
       'navigation.main_menu':defaultMainMenu,
+      'footer.columns': [
+        { title:'Catalog', links:[
+          { label:'All Automotive Parts', href:'/parts' },
+          { label:'Part Categories', href:'/categories' },
+          { label:'Manufacturer Brands', href:'/brands' },
+          { label:'Daily Workshop Vlog', href:'/vlogs' }
+        ]},
+        { title:'Services & Orders', links:[
+          { label:'Book Automotive Service', href:'/services' },
+          { label:'Shopping Cart', href:'/cart' },
+          { label:'Order & Service History', href:'/orders' },
+          { label:'Saved Parts Wishlist', href:'/favorites' },
+          { label:'Customer Account', href:'/account' }
+        ]},
+        { title:'Information', links:[
+          { label:'About', href:'/about' },
+          { label:'Privacy Policy', href:'/privacy' },
+          { label:'Terms & Warranty Policy', href:'/terms' }
+        ]}
+      ],
     };
     const rows = Object.entries(defaults).map(([setting_key,setting_value]) => ({
       category: setting_key.split('.')[0],
