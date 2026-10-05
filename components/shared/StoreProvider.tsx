@@ -654,6 +654,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const loadAdminData = async () => {
     const c = sb();
     if (!c) return;
+    const { data: timezoneRow } = await c
+      .from('app_settings')
+      .select('setting_value')
+      .eq('setting_key', 'business.timezone')
+      .eq('is_public', true)
+      .maybeSingle();
+    const businessTimezone =
+      typeof timezoneRow?.setting_value === 'string' && timezoneRow.setting_value.trim()
+        ? timezoneRow.setting_value.trim()
+        : 'UTC';
+
     const [ord, ap] = await Promise.all([
       c
         .from('orders')
@@ -864,7 +875,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               {
                 hour: '2-digit',
                 minute: '2-digit',
-                timeZone: 'Asia/Manila',
+                timeZone: businessTimezone,
               }
             ),
             notes: x.customer_notes || '',
