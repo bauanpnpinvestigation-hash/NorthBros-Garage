@@ -34,7 +34,7 @@ export async function middleware(request: NextRequest) {
             path: options?.path || '/',
             sameSite: 'lax',
             secure: process.env.NODE_ENV === 'production',
-            httpOnly: true,
+            httpOnly: false,
           } as any);
         }
       },
