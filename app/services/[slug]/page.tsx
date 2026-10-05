@@ -46,37 +46,48 @@ export default function ServiceDetailPage({
     );
   }
 
-  const handleBookService = (e: React.FormEvent) => {
+  const handleBookService = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
     if (!customerName.trim()) errs.name = 'Full name is required.';
-    if (!customerEmail.trim() || !customerEmail.includes('@'))
-      errs.email = 'Valid email is required.';
+    if (!customerEmail.trim() || !customerEmail.includes('@')) errs.email = 'Valid email is required.';
     if (!customerPhone.trim()) errs.phone = 'Mobile number is required.';
-    if (!vehicleDetails.trim())
-      errs.vehicle = 'Please specify your vehicle make, model, and year.';
-
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
-      return;
+    if (!vehicleDetails.trim()) errs.vehicle = 'Please specify your vehicle make, model, and year.';
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    if (!user) { setErrors({ submit: 'Please sign in before booking a service.' }); return; }
+    try {
+      const start = new Date(\`${preferredDate}T${preferredTime.replace(/ AM| PM/,"")}\`);
+      const timeMatch = preferredTime.match(/^(\\d{1,2}):(\\d{2}) (AM|PM)$/);
+      let scheduled = new Date(\`${preferredDate}T00:00:00\`);
+      if (timeMatch) {
+        let h=Number(timeMatch[1]); const m=Number(timeMatch[2]); if(timeMatch[3]==='PM'&&h<12)h+=12;if(timeMatch[3]==='AM'&&h===12)h=0;
+        scheduled=new Date(\`${preferredDate}T\${String(h).padStart(2,'0')}:\${String(m).padStart(2,'0')}:00+08:00\`);
+      }
+      const end = new Date(scheduled.getTime() + (service.duration_minutes || 60) * 60000);
+      const booking = await createServiceBooking({
+        service_id: service.id,
+        scheduled_start: scheduled.toISOString(),
+        scheduled_end: end.toISOString(),
+        notes: [vehicleDetails.trim(), notes.trim()].filter(Boolean).join(' — '),
+      });
+      setErrors({});
+      setConfirmedBooking({
+        ...booking,
+        service_slug: service.slug,
+        service_name: service.name,
+        service_price: service.price,
+        user_id: user.id,
+        customer_name: customerName.trim(),
+        customer_email: customerEmail.trim(),
+        customer_phone: customerPhone.trim(),
+        vehicle_details: vehicleDetails.trim(),
+        preferred_date: preferredDate,
+        preferred_time: preferredTime,
+        notes: notes.trim() || undefined,
+      } as ServiceBooking);
+    } catch (error) {
+      setErrors({ submit: error instanceof Error ? error.message : 'Unable to book this service.' });
     }
-
-    setErrors({});
-    const booking = createServiceBooking({
-      service_id: service.id,
-      service_slug: service.slug,
-      service_name: service.name,
-      service_price: service.price,
-      user_id: user?.id,
-      customer_name: customerName.trim(),
-      customer_email: customerEmail.trim(),
-      customer_phone: customerPhone.trim(),
-      vehicle_details: vehicleDetails.trim(),
-      preferred_date: preferredDate,
-      preferred_time: preferredTime,
-      notes: notes.trim() || undefined,
-    });
-    setConfirmedBooking(booking);
   };
 
   if (confirmedBooking) {
@@ -229,6 +240,7 @@ export default function ServiceDetailPage({
 
         {/* Service Appointment Booking Form Right Column */}
         <aside className="lg:col-span-5 lg:sticky lg:top-24">
+          {errors.submit && <p className="text-xs text-red-700">{errors.submit}</p>}
           <form
             onSubmit={handleBookService}
             noValidate
