@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useStore } from '@/components/shared/StoreProvider';
 import { ServiceCard } from '@/components/services/ServiceCard';
+import { createClient } from '@/lib/supabase/client';
 
 export default function ServicesPage() {
   const { services } = useStore();
+  const [serviceCategories, setServiceCategories] = useState<Array<{id:string;name:string;slug:string}>>([]);
   const [selectedCat, setSelectedCat] = useState('all');
+  useEffect(() => { const c=createClient(); if(!c) return; void c.from('service_categories').select('id,name,slug').eq('is_active',true).order('sort_order').order('name').then(({data})=>setServiceCategories((data||[]) as Array<{id:string;name:string;slug:string}>)); }, []);
 
   const filtered =
     selectedCat === 'all'
@@ -17,7 +20,7 @@ export default function ServicesPage() {
     <div className="max-w-[1360px] mx-auto px-4 sm:px-8 py-12 space-y-10">
       <div className="space-y-2 border-b border-[#E5E5E0] pb-6">
         <p className="text-xs font-medium text-[#6E6E68]">
-          BGC Workshop Service Bays · Certified Technicians
+          Online Service Booking · Configured Workshop Availability
         </p>
         <h1 className="font-display text-3xl sm:text-4xl font-bold text-[#141413] tracking-tight">
           Automotive Maintenance & Repair Services
@@ -29,16 +32,7 @@ export default function ServicesPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 p-1 bg-neutral-200/70 rounded-lg w-fit">
-        {(
-          [
-            'all',
-            'Periodic Maintenance',
-            'Brakes & Chassis',
-            'Electrical & Battery',
-            'Tires & Alignment',
-            'Diagnostics & A/C',
-          ] as const
-        ).map((cat) => (
+        {['all', ...serviceCategories.map((item) => item.name)].map((cat) => (
           <button
             key={cat}
             type="button"
