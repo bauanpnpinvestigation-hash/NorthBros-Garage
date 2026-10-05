@@ -20,8 +20,10 @@ export function Header() {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { cart, favorites, user, isHydrated, refreshAuth, logout } = useStore();
-  const { getString } = useAppSettings();
+  const { getString, getValue } = useAppSettings();
   const siteName = getString('branding.site_name', 'NorthBros Garage');
+  const configuredNav = getValue('navigation.main_menu', null) as unknown;
+  const navItems = Array.isArray(configuredNav) ? configuredNav.filter((item:any) => item && typeof item.href === 'string' && typeof item.label === 'string') as Array<{href:string;label:string}> : NAV_ITEMS;
 
   useEffect(() => {
     if (isHydrated && !user) {
@@ -54,7 +56,7 @@ export function Header() {
           aria-label="Main Navigation"
           className="hidden md:flex items-center gap-7 text-sm font-medium text-[#52524E]"
         >
-          {NAV_ITEMS.map((i) => (
+          {navItems.map((i) => (
             <Link
               key={i.href}
               href={i.href}
