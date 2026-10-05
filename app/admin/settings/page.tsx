@@ -69,6 +69,7 @@ export default function AdminSettingsPage() {
   const [editingAdvancedId, setEditingAdvancedId] = useState<string|null>(null);
 
   useEffect(() => {
+    void refreshSettings(true);
     const next: Record<string,string> = {};
     for (const field of KNOWN_FIELDS) {
       const item = settings.find((x) => x.setting_key === field.key);
@@ -137,7 +138,7 @@ export default function AdminSettingsPage() {
     }));
     const { error: upsertError } = await c.from('app_settings').upsert(rows, { onConflict:'setting_key' });
     if (upsertError) { setError(upsertError.message); return; }
-    await refreshSettings(false);
+    await refreshSettings(true);
   };
 
   const saveKnown = async (field: KnownField) => {
@@ -181,7 +182,7 @@ export default function AdminSettingsPage() {
           <div><h2 className="font-display text-lg font-bold">Quick Business Setup</h2><p className="text-xs text-[#6E6E68]">The fields below are the main settings a new business owner should configure first.</p></div>
           <div className="flex gap-2">
             <button type="button" onClick={() => void initializeDefaults()} className="px-3 py-2 text-xs font-semibold border border-[#E5E5E0] rounded-lg">Initialize Defaults</button>
-            <button type="button" onClick={() => void refreshSettings(false)} className="px-3 py-2 text-xs font-semibold border border-[#E5E5E0] rounded-lg">Refresh</button>
+            <button type="button" onClick={() => void refreshSettings(true)} className="px-3 py-2 text-xs font-semibold border border-[#E5E5E0] rounded-lg">Refresh</button>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
