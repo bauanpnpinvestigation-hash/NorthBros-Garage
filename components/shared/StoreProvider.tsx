@@ -835,11 +835,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const st: any = {
             pending: 'Pending',
             confirmed: 'Confirmed',
-            checked_in: 'Confirmed',
+            checked_in: 'Checked In',
             in_progress: 'In Service Bay',
             completed: 'Completed',
             cancelled: 'Cancelled',
-            no_show: 'Cancelled',
+            no_show: 'No Show',
           };
           return {
             id: x.id,
