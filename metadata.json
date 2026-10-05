@@ -1,0 +1,6 @@
+{
+  "name": "Apex Motors PH — Certified Automotive Marketplace & Daily Vlog",
+  "description": "Browse, compare, reserve, and purchase certified luxury & performance vehicles in the Philippines, plus watch our daily test-drive vlogs and showroom builds.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
