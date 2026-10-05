@@ -125,8 +125,10 @@ interface StoreContextType {
   ) => Promise<void>;
   addBrand: (brand: Omit<Brand, 'id'>) => Promise<void>;
   updateBrand: (id: string, updates: Partial<Brand>) => Promise<void>;
+  deleteBrand: (id: string) => Promise<void>;
   addCategory: (cat: Omit<Category, 'id'>) => Promise<void>;
   updateCategory: (id: string, updates: Partial<Category>) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
   addVlog: (
     vlog: Omit<VlogPost, 'id' | 'views_count' | 'likes_count' | 'comments'>
   ) => Promise<VlogPost>;
@@ -1542,6 +1544,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     showToast('Brand updated.');
   };
 
+  const deleteBrand = async (id: string) => {
+    if (!user || user.role !== 'admin')
+      throw new Error('Administrator authorization required.');
+    const c = sb();
+    if (!c) throw new Error('Supabase is not configured.');
+    const r = await c
+      .from('brands')
+      .update({ is_active: false })
+      .eq('id', id);
+    if (r.error) throw r.error;
+    await loadCatalog();
+    showToast('Brand removed from the active catalog.');
+  };
+
   const addCategory = async (cat: any) => {
     if (!user || user.role !== 'admin')
       throw new Error('Administrator authorization required.');
@@ -1575,6 +1591,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (r.error) throw r.error;
     await loadCatalog();
     showToast('Category updated.');
+  };
+
+  const deleteCategory = async (id: string) => {
+    if (!user || user.role !== 'admin')
+      throw new Error('Administrator authorization required.');
+    const c = sb();
+    if (!c) throw new Error('Supabase is not configured.');
+    const r = await c
+      .from('categories')
+      .update({ is_active: false })
+      .eq('id', id);
+    if (r.error) throw r.error;
+    await loadCatalog();
+    showToast('Category removed from the active catalog.');
   };
 
   const addVlog = async (vlog: any): Promise<VlogPost> => {
@@ -1774,8 +1804,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       updateOrderStatus,
       addBrand,
       updateBrand,
+      deleteBrand,
       addCategory,
       updateCategory,
+      deleteCategory,
       addVlog,
       updateVlog,
       deleteVlog,
