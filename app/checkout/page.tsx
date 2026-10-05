@@ -42,7 +42,12 @@ export default function CheckoutPage() {
       if (error) setErrors((current) => ({ ...current, submit: error.message }));
       else {
         const methods = (data || []) as Array<{code:string;name:string;description:string|null;public_config:Record<string,unknown>}>;
-        setPaymentMethods(methods);
+        const configuredMethods = methods.filter((method) => {
+          const config = method.public_config || {};
+          const settlement = String(config.settlement_mode || 'online').toLowerCase();
+          return settlement === 'offline' || Boolean(String(config.provider || '').trim());
+        });
+        setPaymentMethods(configuredMethods);
         if (methods[0]) setPaymentMethod(methods[0].code);
       }
       setPaymentLoading(false);
