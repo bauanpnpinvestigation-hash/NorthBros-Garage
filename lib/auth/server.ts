@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { isStaffRole, resolveUserRole, type UserRole } from './role';
 
