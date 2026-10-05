@@ -2,38 +2,26 @@ import { createBrowserClient } from '@supabase/ssr';
 
 const AUTH_COOKIE_STORAGE_KEY = 'nb_supabase_auth_cookies';
 
-const DEFAULT_SUPABASE_URL = 'https://yrbelimellocykhqjjyw.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYmVsaW1lbGxvY3lraHFqanl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExOTg3MTYsImV4cCI6MjEwNjc3NDcxNn0.FDD_ZE3K9WvgfLjKkxI_mZlD3McTofflW0Dm1I7fFkE';
-
 export function getSupabaseUrl(): string {
   const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!raw) return DEFAULT_SUPABASE_URL;
+  if (!raw) return '';
   const trimmed = raw.trim();
   const match = trimmed.match(/https?:\/\/[^\s"'=]+/i);
   const candidate = match ? match[0] : trimmed;
-  if (
-    !candidate ||
-    !/^https?:\/\//i.test(candidate) ||
-    candidate === 'https://your-project-id.supabase.co'
-  ) {
-    return DEFAULT_SUPABASE_URL;
-  }
+  if (!candidate || !/^https?:\/\//i.test(candidate)) return '';
   return candidate.replace(/\/+$/, '');
 }
 
 export function getSupabaseAnonKey(): string {
   const raw = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!raw) return DEFAULT_SUPABASE_ANON_KEY;
+  if (!raw) return '';
   let candidate = raw.trim();
   if (candidate.includes('=')) {
     const idx = candidate.indexOf('=');
     const after = candidate.slice(idx + 1).trim();
     if (after) candidate = after;
   }
-  if (!candidate || candidate === 'your-supabase-anon-key') {
-    return DEFAULT_SUPABASE_ANON_KEY;
-  }
+  if (!candidate || candidate === 'your-supabase-anon-key') return '';
   return candidate;
 }
 
