@@ -28,6 +28,7 @@ export default function CheckoutPage() {
     user?.postal_code || ''
   );
   const [paymentMethod, setPaymentMethod] = useState('');
+  const [promotionCode, setPromotionCode] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
@@ -84,7 +85,8 @@ export default function CheckoutPage() {
       }
       const result = await createOrder({
         recipient_name: customerName.trim(), phone: customerPhone.trim(), address_line: shippingAddress.trim(),
-        city: shippingCity.trim(), postal_code: shippingPostalCode.trim(), payment_method_code: code,
+        city: shippingCity.trim(), postal_code: shippingPostalCode.trim(), payment_method_code: selectedPayment.code,
+        promotion_code: promotionCode.trim() || undefined,
         customer_notes: notes.trim() || undefined, idempotency_key: checkoutIdempotencyKey,
         items: cart.map((c) => ({ product_id: c.product_id, quantity: c.quantity })),
       });
@@ -113,7 +115,7 @@ export default function CheckoutPage() {
         })),
         subtotal: result.subtotal,
         shipping_fee: result.shipping_fee,
-        discount_amount: 0,
+        discount_amount: Number(result.discount_amount || 0),
         total_amount: result.total_amount,
         created_at: new Date().toISOString(),
       });
@@ -351,6 +353,25 @@ export default function CheckoutPage() {
             ))}
           </div>
 
+          <div>
+            <label htmlFor="chk-promo" className="block text-xs font-semibold text-[#141413] mb-1">
+              Promotion Code (Optional)
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="chk-promo"
+                type="text"
+                value={promotionCode}
+                onChange={(e) => setPromotionCode(e.target.value)}
+                placeholder="Enter promotion code"
+                className="flex-1 px-3.5 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg font-mono uppercase"
+              />
+            </div>
+            <p className="mt-1 text-[10px] text-[#6E6E68]">
+              The server validates eligible products, timing, limits, and discount amount at checkout.
+            </p>
+          </div>
+
           {errors.submit && <p className="text-xs text-red-700">{errors.submit}</p>}
 
           <div>
@@ -405,6 +426,11 @@ export default function CheckoutPage() {
                 {shippingFee === 0 ? 'FREE' : formatPHP(shippingFee)}
               </span>
             </div>
+            {promotionCode.trim() && (
+              <div className="text-[10px] text-[#6E6E68]">
+                Promotion code will be validated when the order is placed.
+              </div>
+            )}
             <div className="pt-3 border-t border-[#E5E5E0] flex items-baseline justify-between">
               <span className="text-sm font-bold text-[#141413]">
                 Total Payable
