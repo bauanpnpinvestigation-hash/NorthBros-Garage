@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useStore } from '@/components/shared/StoreProvider';
 import { useAppSettings } from '@/components/shared/AppSettingsProvider';
@@ -22,6 +23,7 @@ export function Header() {
   const { cart, favorites, user, isHydrated, refreshAuth, logout } = useStore();
   const { getString, getValue } = useAppSettings();
   const siteName = getString('branding.site_name', 'NorthBros Garage');
+  const logoUrl = getString('branding.logo_url', '');
   const configuredNav = getValue('navigation.main_menu', null) as unknown;
   const navItems = Array.isArray(configuredNav) ? configuredNav.filter((item:any) => item && typeof item.href === 'string' && typeof item.label === 'string') as Array<{href:string;label:string}> : NAV_ITEMS;
 
@@ -48,9 +50,12 @@ export function Header() {
       <div className="max-w-[1360px] mx-auto px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
         <Link
           href="/"
-          className="font-display text-xl font-bold tracking-tight text-[#141413] whitespace-nowrap"
+          className="flex items-center gap-2 font-display text-xl font-bold tracking-tight text-[#141413] whitespace-nowrap"
         >
-          {siteName}
+          {logoUrl ? (
+            <Image src={logoUrl} alt={siteName} width={34} height={34} className="h-8 w-8 object-contain" />
+          ) : null}
+          <span>{siteName}</span>
         </Link>
         <nav
           aria-label="Main Navigation"
