@@ -1,13 +1,26 @@
-export type UserRole = 'admin' | 'customer';
+export type UserRole = 'admin' | 'manager' | 'staff' | 'mechanic' | 'customer';
 
 export function resolveUserRole(user: any, profile?: any): UserRole {
-  if (user?.app_metadata?.role === 'admin') {
-    return 'admin';
-  }
+  const metadataRole = user?.app_metadata?.role;
+  const profileRole = profile?.role;
+  const role = metadataRole || profileRole;
 
-  if (profile?.role === 'admin') {
-    return 'admin';
+  if (
+    role === 'admin' ||
+    role === 'manager' ||
+    role === 'staff' ||
+    role === 'mechanic'
+  ) {
+    return role;
   }
 
   return 'customer';
+}
+
+export function isStaffRole(role: UserRole): boolean {
+  return role === 'admin' || role === 'manager' || role === 'staff' || role === 'mechanic';
+}
+
+export function isAdminRole(role: UserRole): boolean {
+  return role === 'admin';
 }
