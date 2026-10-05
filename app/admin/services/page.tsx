@@ -2,14 +2,16 @@
 
 import React, { useEffect, useState } from 'react';
 import { useStore } from '@/components/shared/StoreProvider';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { AdminShell } from '@/components/admin/AdminShell';
 import { MediaUploadInput } from '@/components/shared/MediaUploadInput';
-import { formatPHP, slugify } from '@/lib/utils/format';
+import { formatCurrency, slugify } from '@/lib/utils/format';
 import { AutomotiveService } from '@/types/database';
 import { createClient } from '@/lib/supabase/client';
 
 export default function AdminServicesPage() {
   const { services, addService, updateService, deleteService } = useStore();
+  const { getCurrency } = useAppSettings();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [category, setCategory] = useState<AutomotiveService['category']>('');
@@ -261,7 +263,7 @@ export default function AdminServicesPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-4 shrink-0">
-                    <span className="font-mono font-bold text-sm">{formatPHP(service.price)}</span>
+                    <span className="font-mono font-bold text-sm">{formatCurrency(service.price, getCurrency())}</span>
                     <button type="button" onClick={() => startEdit(service)} className="text-xs font-semibold hover:underline">
                       Edit
                     </button>
