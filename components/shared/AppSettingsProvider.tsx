@@ -9,6 +9,7 @@ interface AppSettingsContextValue {
   loading: boolean;
   getValue: (key: string, fallback?: unknown) => unknown;
   getString: (key: string, fallback?: string) => string;
+  getCurrency: () => string;
   refreshSettings: (includePrivate?: boolean) => Promise<void>;
   createSetting: (input: Omit<AppSetting, 'id' | 'created_at' | 'updated_at'>) => Promise<AppSetting>;
   updateSetting: (id: string, input: Partial<Omit<AppSetting, 'id' | 'created_at' | 'updated_at'>>) => Promise<AppSetting>;
@@ -88,6 +89,11 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     [getValue]
   );
 
+  const getCurrency = useCallback(() => {
+    const value = getString('store.currency', 'PHP').trim().toUpperCase();
+    return /^[A-Z]{3}$/.test(value) ? value : 'PHP';
+  }, [getString]);
+
   const createSetting = useCallback(
     async (input: Omit<AppSetting, 'id' | 'created_at' | 'updated_at'>) => {
       const client = createClient();
@@ -138,6 +144,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       loading,
       getValue,
       getString,
+      getCurrency,
       refreshSettings,
       createSetting,
       updateSetting,
