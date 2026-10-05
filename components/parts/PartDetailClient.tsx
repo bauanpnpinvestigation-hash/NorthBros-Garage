@@ -23,8 +23,8 @@ interface PartDetailClientProps {
   initialPart: PartProduct | null;
 }
 
-export function PartDetailClient({
-  const { getCurrency } = useAppSettings(); slug, initialPart }: PartDetailClientProps) {
+export function PartDetailClient({ slug, initialPart }: PartDetailClientProps) {
+  const { getCurrency } = useAppSettings();
   const router = useRouter();
   const { parts, vlogs, favorites, toggleFavorite, addToCart, user } = useStore();
   const part = parts.find((p) => p.slug === slug) || initialPart;
