@@ -120,9 +120,11 @@ export default function AdminAppointmentsPage() {
                   >
                     <option value="Pending">Pending</option>
                     <option value="Confirmed">Confirmed</option>
+                    <option value="Checked In">Checked In</option>
                     <option value="In Service Bay">In Service Bay</option>
                     <option value="Completed">Completed</option>
                     <option value="Cancelled">Cancelled</option>
+                    <option value="No Show">No Show</option>
                   </select>
                 </div>
               </div>
