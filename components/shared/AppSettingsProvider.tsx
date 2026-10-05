@@ -60,6 +60,19 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     void refreshSettings(false);
+
+    const client = createClient();
+    if (!client) return;
+
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        void refreshSettings(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [refreshSettings]);
 
   const getValue = useCallback(
@@ -85,7 +98,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         .select('id,category,setting_key,setting_value,is_public,description,created_at,updated_at')
         .single();
       if (error) throw error;
-      await refreshSettings(true);
+      await refreshSettings(false);
       return data as AppSetting;
     },
     [refreshSettings]
@@ -105,7 +118,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         .select('id,category,setting_key,setting_value,is_public,description,created_at,updated_at')
         .single();
       if (error) throw error;
-      await refreshSettings(true);
+      await refreshSettings(false);
       return data as AppSetting;
     },
     [refreshSettings]
