@@ -4,7 +4,6 @@ import React, { use } from 'react';
 import Link from 'next/link';
 import { useStore } from '@/components/shared/StoreProvider';
 import { useAppSettings } from '@/components/shared/AppSettingsProvider';
-import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { formatDate, formatCurrency } from '@/lib/utils/format';
 
 export default function OrderDetailPage({
