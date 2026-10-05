@@ -45,6 +45,14 @@ export async function loginAction(formData: FormData) {
   }
 
   if (data.user) {
+    const isAdmin =
+      data.user.app_metadata?.role === 'admin' ||
+      data.user.app_metadata?.is_admin === true;
+
+    if (isAdmin) {
+      redirect('/admin');
+    }
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
