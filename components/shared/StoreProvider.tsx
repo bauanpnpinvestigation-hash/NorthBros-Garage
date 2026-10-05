@@ -112,12 +112,23 @@ function mapOrder(row:any): Order {
 
 async function loadProfile(id:string):Promise<UserProfile|null> {
   const c=sb(); if(!c) return null;
-  const [{data:profile},{data:address}]=await Promise.all([
+  const [{data:profile},{data:address},{data:{user:authUser}}]=await Promise.all([
     c.from('profiles').select('*').eq('id',id).maybeSingle(),
     c.from('addresses').select('*').eq('customer_id',id).eq('is_default',true).order('created_at',{ascending:false}).limit(1).maybeSingle(),
+    c.auth.getUser(),
   ]);
-  if(!profile) return null;
-  return {id:profile.id,name:profile.full_name||'',email:profile.email||'',phone:profile.phone||'',address:address?.address_line||'',city:[address?.city,address?.province].filter(Boolean).join(', '),postal_code:address?.postal_code||'',role:profile.role==='admin'?'admin':'customer',created_at:profile.created_at};
+  if(!authUser || authUser.id !== id) return null;
+  return {
+    id,
+    name: profile?.full_name || authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || '',
+    email: profile?.email || authUser.email || '',
+    phone: profile?.phone || authUser.user_metadata?.phone || '',
+    address: address?.address_line || '',
+    city: [address?.city,address?.province].filter(Boolean).join(', '),
+    postal_code: address?.postal_code || '',
+    role: profile?.role === 'admin' ? 'admin' : 'customer',
+    created_at: profile?.created_at || authUser.created_at,
+  };
 }
 
 export function StoreProvider({children}:{children:React.ReactNode}) {
@@ -171,14 +182,14 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
   useEffect(()=>{
     let mounted=true; const c=sb();
     (async()=>{
-      if(c){ const {data:{session}}=await c.auth.getSession(); if(mounted&&session){const p=await loadProfile(session.user.id);setUser(p);await loadCustomerData(session.user.id);if(p?.role==='admin')await loadAdminData();}
+      if(c){ const {data:{session}}=await c.auth.getSession(); if(mounted&&session){const p=await loadProfile(session.user.id);if(p)setUser(p);await loadCustomerData(session.user.id);if(p?.role==='admin')await loadAdminData();}
         await loadCatalog(); await loadVlogs(); }
       if(mounted)setIsHydrated(true);
     })();
     if(!c) return ()=>{mounted=false};
     const {data:{subscription}}=c.auth.onAuthStateChange((_e,session)=>{
       if(!mounted)return;
-      if(session){setTimeout(async()=>{const p=await loadProfile(session.user.id);if(mounted)setUser(p);await loadCustomerData(session.user.id);if(p?.role==='admin')await loadAdminData();},0);}
+      if(session){setTimeout(async()=>{const p=await loadProfile(session.user.id);if(mounted&&p)setUser(p);await loadCustomerData(session.user.id);if(p?.role==='admin')await loadAdminData();},0);}
       else {setUser(null);setFavorites([]);setCart([]);setOrders([]);setServiceBookings([]);}
     });
     return ()=>{mounted=false;subscription.unsubscribe();};
@@ -231,7 +242,14 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
 
   const login=async(email:string,password:string)=>{
     const c=sb();if(!c){showToast('Supabase is not configured.','error');return false;}
-    const {error}=await c.auth.signInWithPassword({email:email.trim(),password});if(error){showToast(error.message,'error');return false;}return true;
+    const {data,error}=await c.auth.signInWithPassword({email:email.trim(),password});
+    if(error){showToast(error.message,'error');return false;}
+    if(data.user){
+      const p=await loadProfile(data.user.id);
+      if(p)setUser(p);
+      await loadCustomerData(data.user.id);
+    }
+    return true;
   };
   const register=async(name:string,email:string,phone:string,password:string)=>{
     const c=sb();if(!c){showToast('Supabase is not configured.','error');return false;}
