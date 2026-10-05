@@ -176,7 +176,7 @@ async function resolveVehicleVariantId(
     .eq('is_active', true);
 
   const parseYearRange = (value: string) => {
-    const parts = value.match(/(\\d{4}).*?(\\d{4})/);
+    const parts = value.match(/(\d{4}).*?(\d{4})/);
     return parts ? [Number(parts[1]), Number(parts[2])] : [Number(value) || 0, Number(value) || 0];
   };
   const [fromYear, toYear] = parseYearRange(years);
