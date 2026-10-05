@@ -3,72 +3,105 @@
 import React, { useState } from 'react';
 import { useStore } from '@/components/shared/StoreProvider';
 import { AdminShell } from '@/components/admin/AdminShell';
+import { MediaUploadInput } from '@/components/shared/MediaUploadInput';
 import { slugify } from '@/lib/utils/format';
 
 export default function AdminCategoriesPage() {
-  const { categories, parts, addCategory } = useStore();
+  const { categories, parts, addCategory, updateCategory, deleteCategory } = useStore();
   const [name, setName] = useState('');
-  const [commonParts, setCommonParts] = useState('');
+  const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !description.trim()) return;
-    addCategory({
-      name: name.trim(),
-      slug: slugify(name),
-      common_parts: commonParts.trim() || 'Filters, Plugs, Belts',
-      description: description.trim(),
-    });
+  const reset = () => {
     setName('');
-    setCommonParts('');
+    setSlug('');
     setDescription('');
+    setImageUrl('');
+    setEditingId(null);
+    setError('');
+  };
+
+  const startEdit = (category: (typeof categories)[number]) => {
+    setEditingId(category.id);
+    setName(category.name);
+    setSlug(category.slug);
+    setDescription(category.description || '');
+    setImageUrl(category.image_url || '');
+    setError('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError('');
+
+    const cleanName = name.trim();
+    if (!cleanName) {
+      setError('Category name is required.');
+      return;
+    }
+
+    try {
+      const payload = {
+        name: cleanName,
+        slug: slug.trim() || slugify(cleanName),
+        description: description.trim(),
+        image_url: imageUrl.trim() || undefined,
+      };
+
+      if (editingId) {
+        await updateCategory(editingId, payload);
+      } else {
+        await addCategory(payload);
+      }
+
+      reset();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to save category.');
+    }
+  };
+
+  const handleDelete = async (category: (typeof categories)[number]) => {
+    if (!window.confirm(`Remove "${category.name}" from the active catalog?`)) return;
+    setError('');
+    try {
+      await deleteCategory(category.id);
+      if (editingId === category.id) reset();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to remove category.');
+    }
   };
 
   return (
     <AdminShell
       title="Car Part Categories"
-      subtitle="Organize parts by vehicle mechanical and electrical systems."
+      subtitle="Manage catalog categories directly from the database."
     >
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-7 space-y-4">
-          {categories.map((cat) => {
-            const count = parts.filter((p) => p.category_slug === cat.slug).length;
-            return (
-              <div
-                key={cat.id}
-                className="bg-white border border-[#E5E5E0] rounded-xl p-5 space-y-2"
-              >
-                <div className="flex items-center justify-between">
-                  <h3 className="font-display text-lg font-bold text-[#141413]">
-                    {cat.name}
-                  </h3>
-                  <span className="text-xs font-mono tabular-nums text-[#6E6E68]">
-                    {count} parts
-                  </span>
-                </div>
-                <p className="text-xs text-[#52524E]">{cat.description}</p>
-                <p className="text-[11px] text-[#6E6E68]">
-                  Common items: {cat.common_parts}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <form
-          onSubmit={handleCreate}
-          className="lg:col-span-5 bg-white border border-[#E5E5E0] rounded-xl p-6 space-y-4 h-fit"
+          onSubmit={handleSubmit}
+          className="xl:col-span-5 bg-white border border-[#E5E5E0] rounded-xl p-6 space-y-4 h-fit"
         >
-          <h2 className="font-display text-base font-bold text-[#141413]">
-            Add Part Category
-          </h2>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-base font-bold">
+                {editingId ? 'Edit Category' : 'Add Category'}
+              </h2>
+              <p className="text-[11px] text-[#6E6E68]">Category data stays database-driven.</p>
+            </div>
+            {editingId && (
+              <button type="button" onClick={reset} className="text-xs font-semibold hover:underline">
+                Cancel
+              </button>
+            )}
+          </div>
+
           <div>
-            <label className="block text-xs font-semibold text-[#141413] mb-1">
-              Category Name
-            </label>
+            <label className="block text-xs font-semibold mb-1">Category Name</label>
             <input
-              type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -76,37 +109,83 @@ export default function AdminCategoriesPage() {
               className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
             />
           </div>
+
           <div>
-            <label className="block text-xs font-semibold text-[#141413] mb-1">
-              Common Components Included
-            </label>
+            <label className="block text-xs font-semibold mb-1">Slug</label>
             <input
-              type="text"
-              value={commonParts}
-              onChange={(e) => setCommonParts(e.target.value)}
-              placeholder="Pads, Rotors, Calipers, Fluid"
-              className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder={name ? slugify(name) : 'braking-systems'}
+              className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg font-mono"
             />
           </div>
+
           <div>
-            <label className="block text-xs font-semibold text-[#141413] mb-1">
-              Description
-            </label>
+            <label className="block text-xs font-semibold mb-1">Description</label>
             <textarea
-              rows={3}
-              required
+              rows={4}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
             />
           </div>
+
+          <MediaUploadInput
+            label="Category Image"
+            value={imageUrl}
+            onChange={setImageUrl}
+            cloudinaryFolder="categories"
+            helperText="Uploads are stored under NorthBros Garage/categories."
+          />
+
+          {error && <p className="text-xs text-red-700">{error}</p>}
+
           <button
             type="submit"
-            className="w-full py-2.5 bg-[#141413] text-white text-xs font-semibold rounded-lg cursor-pointer"
+            className="w-full py-2.5 bg-[#141413] text-white text-xs font-semibold rounded-lg hover:bg-neutral-800"
           >
-            Save Category
+            {editingId ? 'Save Category Changes' : 'Create Category'}
           </button>
         </form>
+
+        <section className="xl:col-span-7 bg-white border border-[#E5E5E0] rounded-xl p-6">
+          <h2 className="font-display text-base font-bold mb-5">
+            Active Categories ({categories.length})
+          </h2>
+
+          {categories.length === 0 ? (
+            <p className="text-sm text-[#6E6E68] text-center py-10">No active categories yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {categories.map((category) => {
+                const count = parts.filter((part) => part.category_slug === category.slug).length;
+                return (
+                  <div
+                    key={category.id}
+                    className="border border-[#E5E5E0] rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm">{category.name}</p>
+                      <p className="text-[11px] text-[#6E6E68] font-mono">{category.slug}</p>
+                      {category.description && (
+                        <p className="text-xs text-[#52524E] mt-1">{category.description}</p>
+                      )}
+                      <p className="text-[11px] text-[#6E6E68] mt-1">{count} parts in catalog</p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button type="button" onClick={() => startEdit(category)} className="text-xs font-semibold hover:underline">
+                        Edit
+                      </button>
+                      <button type="button" onClick={() => void handleDelete(category)} className="text-xs font-semibold text-red-700 hover:underline">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
     </AdminShell>
   );
