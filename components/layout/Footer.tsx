@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useStore } from '@/components/shared/StoreProvider';
 import { useAppSettings } from '@/components/shared/AppSettingsProvider';
+import { isStaffRole } from '@/lib/auth/role';
 
 type FooterLink = { label: string; href: string };
 type FooterColumn = { title: string; links: FooterLink[] };
@@ -87,7 +88,7 @@ export function Footer() {
             </div>
           ))}
 
-          {user?.role === 'admin' && (
+          {user && isStaffRole(user.role) && (
             <div className="space-y-3">
               <h3 className="text-xs font-semibold text-white tracking-wide">
                 Administration
