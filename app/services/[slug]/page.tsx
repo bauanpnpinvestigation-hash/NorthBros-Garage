@@ -1,9 +1,10 @@
 'use client';
 
-import React, { use, useState } from 'react';
+import React, { use, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useStore } from '@/components/shared/StoreProvider';
+import { createClient } from '@/lib/supabase/client';
 import { formatPHP } from '@/lib/utils/format';
 import { ServiceBooking } from '@/types/database';
 import { Check, CheckCircle2, Clock } from 'lucide-react';
@@ -24,19 +25,58 @@ export default function ServiceDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const { services, createServiceBooking, user } = useStore();
+  const { services, createServiceBooking, customerVehicles, user } = useStore();
   const service = services.find((s) => s.slug === slug);
 
   const [customerName, setCustomerName] = useState(user?.name || '');
   const [customerEmail, setCustomerEmail] = useState(user?.email || '');
   const [customerPhone, setCustomerPhone] = useState(user?.phone || '');
   const [vehicleDetails, setVehicleDetails] = useState(user?.garage_vehicle || '');
+  const [selectedVehicleId, setSelectedVehicleId] = useState('');
+  const [slots, setSlots] = useState<Array<{id:string;branch_id:string;start_time:string;end_time:string;capacity:number;branch_name:string}>>([]);
+  const [selectedSlotId, setSelectedSlotId] = useState('');
   const [preferredDate, setPreferredDate] = useState(getManilaTomorrow);
-  const [preferredTime, setPreferredTime] = useState('09:00');
+  const [preferredTime, setPreferredTime] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmedBooking, setConfirmedBooking] =
     useState<ServiceBooking | null>(null);
+  useEffect(() => {
+    if (!selectedVehicleId) return;
+    const selected = customerVehicles.find((vehicle) => vehicle.id === selectedVehicleId);
+    if (selected) {
+      setVehicleDetails([selected.make_name, selected.model_name, selected.variant_name].filter(Boolean).join(' '));
+    }
+  }, [customerVehicles, selectedVehicleId]);
+
+  useEffect(() => {
+    const c = createClient();
+    if (!c || !service) return;
+    void c.from('service_slots')
+      .select('id,branch_id,start_time,end_time,capacity,branches(name)')
+      .eq('service_id', service.id)
+      .eq('is_available', true)
+      .gte('start_time', new Date().toISOString())
+      .order('start_time')
+      .limit(100)
+      .then(({ data }) => {
+        const next = (data || []).map((row:any) => ({
+          id: row.id,
+          branch_id: row.branch_id,
+          start_time: row.start_time,
+          end_time: row.end_time,
+          capacity: row.capacity,
+          branch_name: row.branches?.name || 'Branch',
+        }));
+        setSlots(next);
+        if (next[0]) {
+          setSelectedSlotId(next[0].id);
+          setPreferredDate(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila'}).format(new Date(next[0].start_time)));
+          setPreferredTime(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Manila',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(next[0].start_time)));
+        }
+      });
+  }, [service]);
+
 
   if (!service) {
     return (
@@ -60,16 +100,17 @@ export default function ServiceDetailPage({
     if (!customerName.trim()) errs.name = 'Full name is required.';
     if (!customerEmail.trim() || !customerEmail.includes('@')) errs.email = 'Valid email is required.';
     if (!customerPhone.trim()) errs.phone = 'Mobile number is required.';
-    if (!vehicleDetails.trim()) errs.vehicle = 'Please specify your vehicle make, model, and year.';
+    if (!selectedVehicleId && !vehicleDetails.trim()) errs.vehicle = 'Select a saved vehicle or enter your vehicle details.';
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     if (!user) { setErrors({ submit: 'Please sign in before booking a service.' }); return; }
     try {
+      const selectedSlot = slots.find((slot) => slot.id === selectedSlotId);
       const scheduled = new Date(preferredDate + 'T' + preferredTime + ':00+08:00');
       if (Number.isNaN(scheduled.getTime())) {
         setErrors({ submit: 'Choose a valid appointment date and time.' });
         return;
       }
-      const booking = await createServiceBooking({ service_id: service.id, scheduled_start: scheduled.toISOString(), notes: [vehicleDetails.trim(), notes.trim()].filter(Boolean).join(' — ') });
+      const booking = await createServiceBooking({ service_id: service.id, branch_id: selectedSlot?.branch_id, customer_vehicle_id: selectedVehicleId || undefined, scheduled_start: scheduled.toISOString(), notes: [vehicleDetails.trim(), notes.trim()].filter(Boolean).join(' — ') });
       setErrors({});
       setConfirmedBooking({ ...booking, service_id: service.id, created_at: new Date().toISOString(), booking_reference: booking.appointment_number, service_slug: service.slug, service_name: service.name, service_price: service.price, user_id: user.id, customer_name: customerName.trim(), customer_email: customerEmail.trim(), customer_phone: customerPhone.trim(), vehicle_details: vehicleDetails.trim(), preferred_date: preferredDate, preferred_time: preferredTime, notes: notes.trim() || undefined } as ServiceBooking);
     } catch (error) { setErrors({ submit: error instanceof Error ? error.message : 'Unable to book this service.' }); }
@@ -84,10 +125,10 @@ export default function ServiceDetailPage({
           </div>
           <div className="space-y-2">
             <h1 className="font-display text-3xl font-bold text-[#141413]">
-              Service Appointment Confirmed
+              Service Appointment Request Submitted
             </h1>
             <p className="text-sm text-[#6E6E68]">
-              Your service bay reservation has been scheduled.
+              Your booking request was submitted and is currently pending confirmation.
             </p>
           </div>
 
@@ -245,60 +286,67 @@ export default function ServiceDetailPage({
               Request / Book Service Appointment
             </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label
-                  htmlFor="sb-date"
-                  className="block text-xs font-semibold text-[#141413] mb-1"
-                >
-                  Preferred Date
-                </label>
-                <input
-                  id="sb-date"
-                  type="date"
-                  value={preferredDate}
-                  onChange={(e) => setPreferredDate(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg font-mono tabular-nums"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="sb-time"
-                  className="block text-xs font-semibold text-[#141413] mb-1"
-                >
-                  Time Slot
-                </label>
-                <input
-                  id="sb-time"
-                  type="time"
-                  required
-                  value={preferredTime}
-                  onChange={(e) => setPreferredTime(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg font-mono tabular-nums"
-                >
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="sb-vehicle"
-                className="block text-xs font-semibold text-[#141413] mb-1"
-              >
-                Vehicle Make, Model & Year
-              </label>
-              <input
-                id="sb-vehicle"
-                type="text"
-                value={vehicleDetails}
-                onChange={(e) => setVehicleDetails(e.target.value)}
-                placeholder="e.g. Make, model, year, engine or customer vehicle"
-                className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
-              />
-              {errors.vehicle && (
-                <p className="text-xs text-red-700 mt-1">{errors.vehicle}</p>
+            <div className="space-y-4">
+              {slots.length > 0 ? (
+                <div>
+                  <label htmlFor="sb-slot" className="block text-xs font-semibold text-[#141413] mb-1">Available Service Slot</label>
+                  <select
+                    id="sb-slot"
+                    required
+                    value={selectedSlotId}
+                    onChange={(e) => {
+                      const slot = slots.find((item) => item.id === e.target.value);
+                      setSelectedSlotId(e.target.value);
+                      if (slot) {
+                        setPreferredDate(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila'}).format(new Date(slot.start_time)));
+                        setPreferredTime(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Manila',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(slot.start_time)));
+                      }
+                    }}
+                    className="w-full px-3 py-2 text-xs bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
+                  >
+                    {slots.map((slot) => (
+                      <option key={slot.id} value={slot.id}>
+                        {new Date(slot.start_time).toLocaleString('en-PH',{timeZone:'Asia/Manila',dateStyle:'medium',timeStyle:'short'})} · {slot.branch_name} · capacity {slot.capacity}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="sb-date" className="block text-xs font-semibold text-[#141413] mb-1">Preferred Date</label>
+                    <input id="sb-date" type="date" required value={preferredDate} onChange={(e) => setPreferredDate(e.target.value)} className="w-full px-3 py-2 text-xs bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg font-mono tabular-nums" />
+                  </div>
+                  <div>
+                    <label htmlFor="sb-time" className="block text-xs font-semibold text-[#141413] mb-1">Preferred Time</label>
+                    <input id="sb-time" type="time" required value={preferredTime} onChange={(e) => setPreferredTime(e.target.value)} className="w-full px-3 py-2 text-xs bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg font-mono tabular-nums" />
+                  </div>
+                </div>
               )}
+
+              <div>
+                <label htmlFor="sb-vehicle-select" className="block text-xs font-semibold text-[#141413] mb-1">Saved Vehicle</label>
+                <select id="sb-vehicle-select" value={selectedVehicleId} onChange={(e) => setSelectedVehicleId(e.target.value)} className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg">
+                  <option value="">Choose a saved vehicle</option>
+                  {customerVehicles.map((vehicle) => (
+                    <option key={vehicle.id} value={vehicle.id}>
+                      {vehicle.nickname || [vehicle.make_name, vehicle.model_name, vehicle.variant_name].filter(Boolean).join(' ')}
+                      {vehicle.plate_number ? ' · ' + vehicle.plate_number : ''}
+                    </option>
+                  ))}
+                </select>
+                {customerVehicles.length === 0 && (
+                  <Link href="/account/vehicles" className="inline-block mt-1 text-[11px] font-semibold text-[#141413] hover:underline">
+                    Add a vehicle to your garage →
+                  </Link>
+                )}
+              </div>
+
+              <div>
+                <label htmlFor="sb-vehicle" className="block text-xs font-semibold text-[#141413] mb-1">Vehicle Details {selectedVehicleId ? '(saved vehicle selected)' : ''}</label>
+                <input id="sb-vehicle" type="text" value={vehicleDetails} onChange={(e) => setVehicleDetails(e.target.value)} placeholder="Make, model, year, engine or other vehicle details" className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg" />
+                {errors.vehicle && <p className="text-xs text-red-700 mt-1">{errors.vehicle}</p>}
+              </div>
             </div>
 
             <div>
@@ -381,7 +429,7 @@ export default function ServiceDetailPage({
               type="submit"
               className="w-full py-3 px-5 bg-[#141413] hover:bg-neutral-800 text-white text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer"
             >
-              Confirm Service Booking
+              Request Service Booking
             </button>
           </form>
         </aside>
