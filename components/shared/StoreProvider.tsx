@@ -126,7 +126,7 @@ async function loadProfile(id:string):Promise<UserProfile|null> {
     address: address?.address_line || '',
     city: [address?.city,address?.province].filter(Boolean).join(', '),
     postal_code: address?.postal_code || '',
-    role: profile?.role === 'admin' ? 'admin' : 'customer',
+    role: profile?.role === 'admin' || authUser.app_metadata?.role === 'admin' || authUser.app_metadata?.is_admin === true ? 'admin' : 'customer',
     created_at: profile?.created_at || authUser.created_at,
   };
 }
