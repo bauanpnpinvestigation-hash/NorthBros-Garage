@@ -17,6 +17,7 @@ const ADMIN_LINKS = [
   { href: '/admin/brands', label: 'Brands' },
   { href: '/admin/categories', label: 'Categories' },
   { href: '/admin/service-categories', label: 'Service Categories' },
+  { href: '/admin/service-slots', label: 'Service Slots' },
   { href: '/admin/branches', label: 'Branches' },
   { href: '/admin/vehicles', label: 'Vehicles' },
   { href: '/admin/payments', label: 'Payments' },
