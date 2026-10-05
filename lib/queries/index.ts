@@ -1,222 +1,37 @@
-import {
-  INITIAL_BRANDS,
-  INITIAL_CATEGORIES,
-  INITIAL_ORDERS,
-  INITIAL_PARTS,
-  INITIAL_SERVICES,
-  INITIAL_SERVICE_BOOKINGS,
-  INITIAL_VLOGS,
-} from '@/lib/store/initial-data';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import {
-  AutomotiveService,
-  Brand,
-  Category,
-  Order,
-  PartFilterParams,
-  PartProduct,
-  ServiceBooking,
-  VlogPost,
-} from '@/types/database';
+import { AutomotiveService, Brand, Category, Order, PartFilterParams, PartProduct, ServiceBooking, VlogPost } from '@/types/database';
 
-export async function getFeaturedParts(limit = 6): Promise<PartProduct[]> {
-  try {
-    const supabase = await createServerSupabaseClient();
-    if (supabase) {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('is_featured', true)
-        .limit(limit);
-      if (!error && data && data.length > 0) {
-        return data as PartProduct[];
-      }
-    }
-  } catch {
-    // Fallback to verified repository
-  }
-  return INITIAL_PARTS.filter((p) => p.is_featured).slice(0, limit);
+function storageUrl(bucket:string,path?:string|null){if(!path)return '/images/hero_parts_workshop.jpg';if(path.startsWith('/')||/^https?:\/\//i.test(path))return path;const u=process.env.NEXT_PUBLIC_SUPABASE_URL;return u?u+'/storage/v1/object/public/'+bucket+'/'+path:path;}
+function mapProduct(row:any):PartProduct{
+ const imgs=Array.isArray(row.product_images)?[...row.product_images].sort((a,b)=>(a.sort_order??0)-(b.sort_order??0)):[];
+ const primary=imgs.find((x:any)=>x.is_primary)||imgs[0];
+ const stock=(row.inventory||[]).reduce((n:number,x:any)=>n+Math.max(0,(x.quantity??0)-(x.reserved_quantity??0)),0);
+ const status:any={in_stock:'Active',low_stock:'Active',out_of_stock:'Out of Stock',pre_order:'Active',discontinued:'Archived'};
+ const compatibility=(row.product_vehicle_compatibility||[]).map((x:any)=>{const v=x.vehicle_variants,m=v?.vehicle_models,k=m?.vehicle_makes;return{make:k?.name||'',model:m?.name||v?.name||'',years:v?.year_from&&v?.year_to?\`${v.year_from}-${v.year_to}\`:v?.year_from?String(v.year_from):'',engine:v?.engine||v?.engine_code||''};});
+ return {id:row.id,slug:row.slug,sku:row.sku||'',name:row.name,brand_id:row.brand_id||'',brand_name:row.brands?.name||'',brand_slug:row.brands?.slug||'',category_id:row.category_id||'',category_name:row.categories?.name||'',category_slug:row.categories?.slug||'',price:Number(row.price||0),compare_at_price:row.compare_at_price==null?undefined:Number(row.compare_at_price),stock,status:status[row.stock_status]||'Active',rating:4.9,review_count:0,is_featured:!!row.is_featured,primary_image:storageUrl('product-images',primary?.storage_path),gallery_images:imgs.map((x:any)=>storageUrl('product-images',x.storage_path)),description:row.description||row.short_description||'',specifications:{},compatibility,created_at:row.created_at};
 }
-
-export async function getParts(params: PartFilterParams = {}): Promise<{
-  parts: PartProduct[];
-  total: number;
-  page: number;
-  totalPages: number;
-}> {
-  const {
-    q,
-    brand,
-    category,
-    make,
-    in_stock,
-    max_price,
-    sort = 'recommended',
-    page = 1,
-    limit = 6,
-  } = params;
-
-  let list = [...INITIAL_PARTS];
-
-  try {
-    const supabase = await createServerSupabaseClient();
-    if (supabase) {
-      const { data, error } = await supabase.from('products').select('*');
-      if (!error && data && data.length > 0) {
-        list = data as PartProduct[];
-      }
-    }
-  } catch {
-    // Fallback
-  }
-
-  if (q && q.trim() !== '') {
-    const query = q.toLowerCase().trim();
-    list = list.filter(
-      (p) =>
-        p.name.toLowerCase().includes(query) ||
-        p.sku.toLowerCase().includes(query) ||
-        p.brand_name.toLowerCase().includes(query) ||
-        p.category_name.toLowerCase().includes(query) ||
-        p.compatibility.some(
-          (c) =>
-            c.make.toLowerCase().includes(query) ||
-            c.model.toLowerCase().includes(query)
-        )
-    );
-  }
-
-  if (brand && brand !== 'all') {
-    list = list.filter((p) => p.brand_slug === brand.toLowerCase());
-  }
-
-  if (category && category !== 'all') {
-    list = list.filter((p) => p.category_slug === category.toLowerCase());
-  }
-
-  if (make && make !== 'all') {
-    list = list.filter((p) =>
-      p.compatibility.some((c) => c.make.toLowerCase() === make.toLowerCase())
-    );
-  }
-
-  if (in_stock === 'true') {
-    list = list.filter((p) => p.stock > 0 && p.status === 'Active');
-  }
-
-  if (typeof max_price === 'number' && !isNaN(max_price) && max_price > 0) {
-    list = list.filter((p) => p.price <= max_price);
-  }
-
-  switch (sort) {
-    case 'newest':
-      list.sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-      break;
-    case 'price_asc':
-      list.sort((a, b) => a.price - b.price);
-      break;
-    case 'price_desc':
-      list.sort((a, b) => b.price - a.price);
-      break;
-    case 'rating_desc':
-      list.sort((a, b) => b.rating - a.rating);
-      break;
-    case 'recommended':
-    default:
-      list.sort((a, b) => Number(b.is_featured) - Number(a.is_featured));
-      break;
-  }
-
-  const total = list.length;
-  const totalPages = Math.max(1, Math.ceil(total / limit));
-  const safePage = Math.min(Math.max(1, page), totalPages);
-  const start = (safePage - 1) * limit;
-  const paginated = list.slice(start, start + limit);
-
-  return {
-    parts: paginated,
-    total,
-    page: safePage,
-    totalPages,
-  };
+async function productQuery(s:any){return s.from('products').select('*,brands(name,slug),categories(name,slug),product_images(storage_path,alt_text,sort_order,is_primary),inventory(quantity,reserved_quantity),product_vehicle_compatibility(*,vehicle_variants(*,vehicle_models(*,vehicle_makes(*))))').eq('is_active',true);}
+export async function getFeaturedParts(limit=6):Promise<PartProduct[]>{const s=await createServerSupabaseClient();if(!s)return[];const {data,error}=await (await productQuery(s)).eq('is_featured',true).limit(limit);return error?[]:(data||[]).map(mapProduct);}
+export async function getParts(params:PartFilterParams={}):Promise<{parts:PartProduct[];total:number;page:number;totalPages:number}>{
+ const {q,brand,category,make,in_stock,max_price,sort='recommended',page=1,limit=6}=params;const s=await createServerSupabaseClient();if(!s)return{parts:[],total:0,page:1,totalPages:1};
+ const {data,error}=await productQuery(s);let list=error?[]:(data||[]).map(mapProduct);
+ if(q?.trim()){const x=q.toLowerCase().trim();list=list.filter(p=>[p.name,p.sku,p.brand_name,p.category_name].some(v=>v.toLowerCase().includes(x))||p.compatibility.some(v=>[v.make,v.model].some(z=>z.toLowerCase().includes(x))));}
+ if(brand&&brand!=='all')list=list.filter(p=>p.brand_slug===brand.toLowerCase());
+ if(category&&category!=='all')list=list.filter(p=>p.category_slug===category.toLowerCase());
+ if(make&&make!=='all')list=list.filter(p=>p.compatibility.some(v=>v.make.toLowerCase()===make.toLowerCase()));
+ if(in_stock==='true')list=list.filter(p=>p.stock>0&&p.status==='Active');
+ if(typeof max_price==='number'&&max_price>0)list=list.filter(p=>p.price<=max_price);
+ if(sort==='newest')list.sort((a,b)=>+new Date(b.created_at)-+new Date(a.created_at));else if(sort==='price_asc')list.sort((a,b)=>a.price-b.price);else if(sort==='price_desc')list.sort((a,b)=>b.price-a.price);else if(sort==='rating_desc')list.sort((a,b)=>b.rating-a.rating);else list.sort((a,b)=>Number(b.is_featured)-Number(a.is_featured));
+ const total=list.length,totalPages=Math.max(1,Math.ceil(total/limit)),safePage=Math.min(Math.max(1,page),totalPages);return{parts:list.slice((safePage-1)*limit,safePage*limit),total,page:safePage,totalPages};
 }
-
-export async function getPartBySlug(slug: string): Promise<PartProduct | null> {
-  try {
-    const supabase = await createServerSupabaseClient();
-    if (supabase) {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('slug', slug)
-        .single();
-      if (!error && data) {
-        return data as PartProduct;
-      }
-    }
-  } catch {
-    // Fallback
-  }
-  return INITIAL_PARTS.find((p) => p.slug === slug) || null;
-}
-
-export async function getServices(): Promise<AutomotiveService[]> {
-  try {
-    const supabase = await createServerSupabaseClient();
-    if (supabase) {
-      const { data, error } = await supabase.from('services').select('*');
-      if (!error && data && data.length > 0) {
-        return data as AutomotiveService[];
-      }
-    }
-  } catch {
-    // Fallback
-  }
-  return INITIAL_SERVICES;
-}
-
-export async function getServiceBySlug(
-  slug: string
-): Promise<AutomotiveService | null> {
-  return INITIAL_SERVICES.find((s) => s.slug === slug) || null;
-}
-
-export async function getBrands(): Promise<(Brand & { part_count: number })[]> {
-  return INITIAL_BRANDS.map((b) => ({
-    ...b,
-    part_count: INITIAL_PARTS.filter((p) => p.brand_slug === b.slug).length,
-  }));
-}
-
-export async function getBrandBySlug(slug: string): Promise<Brand | null> {
-  return INITIAL_BRANDS.find((b) => b.slug === slug) || null;
-}
-
-export async function getCategories(): Promise<
-  (Category & { part_count: number })[]
-> {
-  return INITIAL_CATEGORIES.map((cat) => ({
-    ...cat,
-    part_count: INITIAL_PARTS.filter((p) => p.category_slug === cat.slug)
-      .length,
-  }));
-}
-
-export async function getCategoryBySlug(slug: string): Promise<Category | null> {
-  return INITIAL_CATEGORIES.find((c) => c.slug === slug) || null;
-}
-
-export async function getVlogs(): Promise<VlogPost[]> {
-  return [...INITIAL_VLOGS].sort((a, b) => b.episode_number - a.episode_number);
-}
-
-export async function getInitialServiceBookings(): Promise<ServiceBooking[]> {
-  return INITIAL_SERVICE_BOOKINGS;
-}
-
-export async function getInitialOrders(): Promise<Order[]> {
-  return INITIAL_ORDERS;
-}
+export async function getPartBySlug(slug:string):Promise<PartProduct|null>{const s=await createServerSupabaseClient();if(!s)return null;const {data,error}=await (await productQuery(s)).eq('slug',slug).maybeSingle();return error||!data?null:mapProduct(data);}
+function mapService(row:any):AutomotiveService{return{id:row.id,slug:row.slug,service_code:row.slug,name:row.name,category:row.service_categories?.name||'Periodic Maintenance',price:Number(row.price||0),duration_minutes:Number(row.duration_minutes||0),duration_label:row.duration_minutes?row.duration_minutes+' mins':'By inspection',availability:row.is_active&&row.is_bookable?'Available':'Unavailable',description:row.description||row.short_description||'',included_operations:[],recommended_interval:'',image_url:storageUrl('service-images',row.service_images?.find((x:any)=>x.is_primary)?.storage_path)} as AutomotiveService;}
+export async function getServices():Promise<AutomotiveService[]>{const s=await createServerSupabaseClient();if(!s)return[];const {data,error}=await s.from('services').select('*,service_categories(name,slug),service_images(storage_path,is_primary,sort_order)').eq('is_active',true).order('name');return error?[]:(data||[]).map(mapService);}
+export async function getServiceBySlug(slug:string):Promise<AutomotiveService|null>{const s=await createServerSupabaseClient();if(!s)return null;const {data,error}=await s.from('services').select('*,service_categories(name,slug),service_images(storage_path,is_primary,sort_order)').eq('slug',slug).eq('is_active',true).maybeSingle();return error||!data?null:mapService(data);}
+export async function getBrands():Promise<(Brand&{part_count:number})[]>{const s=await createServerSupabaseClient();if(!s)return[];const {data,error}=await s.from('brands').select('*,products(id)').eq('is_active',true).order('name');return error?[]:(data||[]).map((b:any)=>({id:b.id,name:b.name,slug:b.slug,country:'',specialty:'',warranty_policy:'',description:b.description||'',part_count:Array.isArray(b.products)?b.products.length:0}));}
+export async function getBrandBySlug(slug:string):Promise<Brand|null>{const s=await createServerSupabaseClient();if(!s)return null;const {data,error}=await s.from('brands').select('*').eq('slug',slug).eq('is_active',true).maybeSingle();return error||!data?null:{id:data.id,name:data.name,slug:data.slug,country:'',specialty:'',warranty_policy:'',description:data.description||''};}
+export async function getCategories():Promise<(Category&{part_count:number})[]>{const s=await createServerSupabaseClient();if(!s)return[];const {data,error}=await s.from('categories').select('*,products(id)').eq('is_active',true).order('sort_order').order('name');return error?[]:(data||[]).map((x:any)=>({id:x.id,name:x.name,slug:x.slug,description:x.description||'',common_parts:'',part_count:Array.isArray(x.products)?x.products.length:0}));}
+export async function getCategoryBySlug(slug:string):Promise<Category|null>{const s=await createServerSupabaseClient();if(!s)return null;const {data,error}=await s.from('categories').select('*').eq('slug',slug).eq('is_active',true).maybeSingle();return error||!data?null:{id:data.id,name:data.name,slug:data.slug,description:data.description||'',common_parts:''};}
+export async function getVlogs():Promise<VlogPost[]>{const s=await createServerSupabaseClient();if(!s)return[];const {data,error}=await s.from('daily_posts').select('*,daily_post_media(storage_path,thumbnail_path,media_type,sort_order),daily_post_likes(id),daily_post_comments(id,content,created_at,profiles(full_name))').eq('is_published',true).order('published_at',{ascending:false});if(error)return[];return(data||[]).map((x:any,i)=>({id:x.id,slug:x.id,episode_number:(data.length-i),title:x.title||'NorthBros Garage Workshop Update',published_at:x.published_at||x.created_at,duration:'',author_name:'NorthBros Garage',author_role:'Workshop',category:'Service Bay Vlog',summary:x.caption||'',content:x.caption?[x.caption]:[],thumbnail_url:storageUrl('daily-shop',x.daily_post_media?.find((m:any)=>m.media_type==='image')?.storage_path),video_highlights:[],views_count:0,likes_count:x.daily_post_likes?.length||0,comments:(x.daily_post_comments||[]).map((c:any)=>({id:c.id,user_name:c.profiles?.full_name||'Customer',created_at:c.created_at,text:c.content}))} as VlogPost));}
+export async function getInitialServiceBookings():Promise<ServiceBooking[]>{return[];}
+export async function getInitialOrders():Promise<Order[]>{return[];}
