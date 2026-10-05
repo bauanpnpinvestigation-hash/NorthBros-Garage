@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useStore } from '@/components/shared/StoreProvider';
 import { useAppSettings } from '@/components/shared/AppSettingsProvider';
+import { isStaffRole } from '@/lib/auth/role';
 import { Menu, X, LogOut } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -88,23 +89,23 @@ export function Header() {
             </span>
           ) : user ? (
             <div className="flex items-center gap-2">
-              {user.role === 'admin' && (
+              {isStaffRole(user.role) && (
                 <Link
                   href="/admin"
                   className="px-3.5 py-2 text-xs font-semibold text-white bg-[#141413] hover:bg-neutral-800 rounded-lg"
                 >
-                  Admin ({userName})
+                  Staff Console ({userName})
                 </Link>
               )}
               <Link
                 href="/account"
                 className={`px-3.5 py-2 text-xs font-semibold rounded-lg ${
-                  user.role === 'admin'
+                  isStaffRole(user.role)
                     ? 'bg-white border border-[#E5E5E0] text-[#141413] hover:bg-neutral-100'
                     : 'bg-[#141413] text-white hover:bg-neutral-800'
                 }`}
               >
-                {user.role === 'admin' ? 'Account' : userName}
+                {isStaffRole(user.role) ? 'Account' : userName}
               </Link>
               <button
                 type="button"
@@ -171,18 +172,18 @@ export function Header() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="px-3 py-2.5 text-sm font-semibold text-[#141413]"
               >
-                Admin Dashboard
+                Staff Console
               </Link>
             )}
           </nav>
           {user ? (
             <div className="space-y-2 pt-2 border-t border-[#E5E5E0]">
               <Link
-                href={user.role === 'admin' ? '/admin' : '/account'}
+                href={isStaffRole(user.role) ? '/admin' : '/account'}
                 onClick={() => setMobileMenuOpen(false)}
                 className="block w-full py-2.5 text-center text-xs font-semibold text-white bg-[#141413] rounded-lg"
               >
-                {user.role === 'admin' ? `Admin Dashboard (${userName})` : `Account (${userName})`}
+                {isStaffRole(user.role) ? `Staff Console (${userName})` : `Account (${userName})`}
               </Link>
               <button
                 type="button"
