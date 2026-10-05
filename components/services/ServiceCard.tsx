@@ -4,6 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { AutomotiveService } from '@/types/database';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { formatCurrency } from '@/lib/utils/format';
 import { ArrowRight, Clock } from 'lucide-react';
 
