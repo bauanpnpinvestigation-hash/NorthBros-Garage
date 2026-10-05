@@ -7,7 +7,7 @@ import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 
 export function Footer() {
   const { user } = useStore();
-  const { getString } = useAppSettings();
+  const { getString, getValue } = useAppSettings();
   const siteName = getString('branding.site_name', 'NorthBros Garage');
   const tagline = getString(
     'footer.about',
@@ -15,6 +15,7 @@ export function Footer() {
   );
   const contactAddress = getString('contact.address', 'Business address not configured');
   const businessHours = getString('business.hours', 'Business hours not configured');
+  const footerPayments = getString('footer.payments_label', 'Configured payment methods');
   const copyright = getString(
     'footer.copyright',
     `© ${new Date().getFullYear()} ${siteName}. All rights reserved.`
@@ -135,7 +136,7 @@ export function Footer() {
             {copyright}
           </p>
           <p className="tabular-nums">
-            Payments Supported: GCash · Maya · GoTyme / QR Ph · Cash on Delivery
+            {footerPayments}
           </p>
         </div>
       </div>
