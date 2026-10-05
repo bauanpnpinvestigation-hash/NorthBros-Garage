@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getSupabaseUrl } from '@/lib/supabase/client';
 import {
   isVideoMediaUrl,
   resolveDisplayImageUrl,
@@ -23,7 +24,7 @@ function storageUrl(bucket: string, path?: string | null) {
   ) {
     return path;
   }
-  const u = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const u = getSupabaseUrl();
   return u ? `${u}/storage/v1/object/public/${bucket}/${path}` : path;
 }
 

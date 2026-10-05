@@ -69,18 +69,7 @@ export default function AccountDashboardPage() {
         </div>
         <div className="flex items-center gap-3">
           <Link
-          <Link
-          href="/account/vehicles"
-          className="bg-white border border-[#E5E5E0] rounded-xl p-6 space-y-2 hover:border-[#141413] transition-colors"
-        >
-          <p className="text-xs text-[#6E6E68]">My Garage</p>
-          <p className="font-display text-2xl font-bold text-[#141413] font-mono tabular-nums">
-            {customerVehicles.length} Vehicles
-          </p>
-          <p className="text-xs text-[#52524E]">Manage saved vehicles →</p>
-        </Link>
-
-          href="/account/profile"
+            href="/account/profile"
             className="px-4 py-2 bg-white border border-[#E5E5E0] text-[#141413] text-xs font-semibold rounded-lg hover:bg-neutral-100"
           >
             Edit Profile

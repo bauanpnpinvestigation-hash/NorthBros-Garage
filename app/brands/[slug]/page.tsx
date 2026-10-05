@@ -38,7 +38,7 @@ export default async function BrandDetailPage({ params }: BrandSlugPageProps) {
         heading={brand ? `${brand.name} Automotive Parts` : 'Brand Parts'}
         subheading={
           brand
-            ? `${brand.description || 'Explore products from this manufacturer.'`
+            ? `${brand.description || 'Explore products from this manufacturer.'}`
             : 'Explore genuine automotive parts by brand.'
         }
       />

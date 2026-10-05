@@ -8,7 +8,7 @@ import {createClient} from '@/lib/supabase/client';
 type Variant={id:string;name:string|null;year_from:number|null;year_to:number|null;engine:string|null;transmission:string|null;vehicle_models:{name:string;vehicle_makes:{name:string}}|null};
 
 export default function AccountVehiclesPage(){
- const {user,customerVehicles,addCustomerVehicle,updateCustomerVehicle,deleteCustomerVehicle,isHydrated,refreshAuth}=useStore();
+ const {user,customerVehicles,addCustomerVehicle,updateCustomerVehicle,deleteCustomerVehicle,isHydrated,refreshAuth,confirmAction}=useStore();
  const [variants,setVariants]=useState<Variant[]>([]);
  const [variantId,setVariantId]=useState('');
  const [nickname,setNickname]=useState('');
@@ -24,7 +24,7 @@ export default function AccountVehiclesPage(){
 
  useEffect(()=>{
    const c=createClient(); if(!c) return;
-   void c.from('vehicle_variants').select('id,name,year_from,year_to,engine,transmission,vehicle_models(name,vehicle_makes(name))').eq('is_active',true).order('created_at',{ascending:false}).then(({data,error})=>{
+   void c.from('vehicle_variants').select('id,name,year_from,year_to,engine,transmission,vehicle_models(name,vehicle_makes(name))').eq('is_active',true).order('created_at',{ascending:false}).then(({data,error}:any)=>{
      if(error)setError(error.message); else setVariants((data||[]) as unknown as Variant[]);
    });
  },[]);
@@ -59,7 +59,7 @@ export default function AccountVehiclesPage(){
      </form>
      <section className="lg:col-span-3 space-y-3">
        {customerVehicles.length===0?<div className="bg-white border border-[#E5E5E0] rounded-xl p-8 text-center text-sm text-[#6E6E68]">No vehicles saved yet.</div>:customerVehicles.map(v=><article key={v.id} className="bg-white border border-[#E5E5E0] rounded-xl p-5 space-y-3">
-         <div className="flex items-start justify-between gap-4"><div><h3 className="font-display text-lg font-bold">{v.nickname||[v.make_name,v.model_name,v.variant_name].filter(Boolean).join(' ')}</h3><p className="text-xs text-[#6E6E68]">{[v.make_name,v.model_name,v.variant_name].filter(Boolean).join(' · ')}</p></div><div className="flex gap-3 text-xs"><button onClick={()=>edit(v)} className="font-semibold hover:underline">Edit</button><button onClick={async()=>{if(window.confirm('Remove this vehicle from your garage?')){try{await deleteCustomerVehicle(v.id)}catch(err){setError(err instanceof Error?err.message:'Unable to remove vehicle')}}}} className="font-semibold text-red-700 hover:underline">Delete</button></div></div>
+         <div className="flex items-start justify-between gap-4"><div><h3 className="font-display text-lg font-bold">{v.nickname||[v.make_name,v.model_name,v.variant_name].filter(Boolean).join(' ')}</h3><p className="text-xs text-[#6E6E68]">{[v.make_name,v.model_name,v.variant_name].filter(Boolean).join(' · ')}</p></div><div className="flex gap-3 text-xs"><button onClick={()=>edit(v)} className="font-semibold hover:underline">Edit</button><button onClick={async()=>{const ok=await confirmAction({title:'Delete Vehicle',message:'Remove this vehicle from your garage permanently?',confirmLabel:'Delete Vehicle'});if(ok){try{await deleteCustomerVehicle(v.id)}catch(err){setError(err instanceof Error?err.message:'Unable to remove vehicle')}}}} className="font-semibold text-red-700 hover:underline">Delete</button></div></div>
          <div className="grid grid-cols-2 gap-3 text-xs"><div><span className="text-[#6E6E68]">Plate</span><p className="font-mono">{v.plate_number||'—'}</p></div><div><span className="text-[#6E6E68]">Mileage</span><p className="font-mono">{v.current_mileage==null?'—':v.current_mileage.toLocaleString()}</p></div><div><span className="text-[#6E6E68]">Engine</span><p>{v.engine||'—'}</p></div><div><span className="text-[#6E6E68]">Years</span><p>{v.year_from&&v.year_to?String(v.year_from)+'–'+String(v.year_to):v.year_from||v.year_to||'—'}</p></div></div>
          {v.notes&&<p className="text-xs text-[#52524E] bg-[#FAF9F6] rounded-lg p-3">{v.notes}</p>}
        </article>)}

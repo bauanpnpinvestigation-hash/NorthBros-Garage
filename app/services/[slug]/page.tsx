@@ -61,7 +61,7 @@ export default function ServiceDetailPage({
       .gte('start_time', new Date().toISOString())
       .order('start_time')
       .limit(100)
-      .then(({ data }) => {
+      .then(({ data }: any) => {
         const next = (data || []).map((row:any) => ({
           id: row.id,
           branch_id: row.branch_id,

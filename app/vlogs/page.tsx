@@ -24,7 +24,15 @@ import { Play, Plus, X, ThumbsUp, Edit3, Trash2 } from 'lucide-react';
 
 export default function VlogsPage() {
   const { getCurrency } = useAppSettings();
-  const { vlogs, parts, addVlog, updateVlog, deleteVlog, user } = useStore();
+  const {
+    vlogs,
+    parts,
+    addVlog,
+    updateVlog,
+    deleteVlog,
+    user,
+    confirmAction,
+  } = useStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [editingVlog, setEditingVlog] = useState<VlogPost | null>(null);
@@ -292,7 +300,16 @@ export default function VlogsPage() {
                         {user.role === 'admin' && (
                           <button
                             type="button"
-                            onClick={() => deleteVlog(vlog.id)}
+                            onClick={async () => {
+                              const confirmed = await confirmAction({
+                                title: 'Delete Daily Vlog Permanently',
+                                message: `Are you sure you want to permanently delete "${vlog.title}" and all of its nested media, likes, and comments? This action cannot be undone.`,
+                                confirmLabel: 'Delete Permanently',
+                              });
+                              if (confirmed) {
+                                await deleteVlog(vlog.id);
+                              }
+                            }}
                             className="inline-flex items-center gap-1 text-xs font-semibold text-red-700 hover:underline cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

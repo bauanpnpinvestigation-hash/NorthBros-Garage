@@ -7,7 +7,8 @@ import { MediaUploadInput } from '@/components/shared/MediaUploadInput';
 import { slugify } from '@/lib/utils/format';
 
 export default function AdminBrandsPage() {
-  const { brands, parts, addBrand, updateBrand, deleteBrand } = useStore();
+  const { brands, parts, addBrand, updateBrand, deleteBrand, confirmAction } =
+    useStore();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
@@ -65,13 +66,18 @@ export default function AdminBrandsPage() {
   };
 
   const handleDelete = async (brand: (typeof brands)[number]) => {
-    if (!window.confirm(`Remove "${brand.name}" from the active catalog?`)) return;
+    const confirmed = await confirmAction({
+      title: 'Delete Brand Permanently',
+      message: `Are you sure you want to permanently delete "${brand.name}" and all of its nested catalog data? This action cannot be undone.`,
+      confirmLabel: 'Delete Permanently',
+    });
+    if (!confirmed) return;
     setError('');
     try {
       await deleteBrand(brand.id);
       if (editingId === brand.id) reset();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to remove brand.');
+      setError(err instanceof Error ? err.message : 'Unable to delete brand.');
     }
   };
 

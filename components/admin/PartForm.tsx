@@ -6,6 +6,7 @@ import { useStore } from '@/components/shared/StoreProvider';
 import { PartProduct, ProductStatus } from '@/types/database';
 import { slugify } from '@/lib/utils/format';
 import { MediaUploadInput } from '@/components/shared/MediaUploadInput';
+import { Trash2 } from 'lucide-react';
 
 interface PartFormProps {
   initialPart?: PartProduct;
@@ -13,7 +14,8 @@ interface PartFormProps {
 
 export function PartForm({ initialPart }: PartFormProps) {
   const router = useRouter();
-  const { brands, categories, addPart, updatePart } = useStore();
+  const { brands, categories, addPart, updatePart, deletePart, confirmAction } =
+    useStore();
 
   const [brandSlug, setBrandSlug] = useState(
     initialPart?.brand_slug || brands[0]?.slug || ''
@@ -23,13 +25,17 @@ export function PartForm({ initialPart }: PartFormProps) {
   );
   const [name, setName] = useState(initialPart?.name || '');
   const [sku, setSku] = useState(initialPart?.sku || '');
-  const [price, setPrice] = useState(initialPart ? String(initialPart.price) : '');
+  const [price, setPrice] = useState(
+    initialPart ? String(initialPart.price) : ''
+  );
   const [compareAtPrice, setCompareAtPrice] = useState(
     initialPart?.compare_at_price ? String(initialPart.compare_at_price) : ''
   );
-  const [stock, setStock] = useState(initialPart ? String(initialPart.stock) : '0');
+  const [stock, setStock] = useState(
+    initialPart ? String(initialPart.stock) : '0'
+  );
   const [status, setStatus] = useState<ProductStatus>(
-    initialPart?.status || 'Active'
+    initialPart?.status === 'Out of Stock' ? 'Out of Stock' : 'Active'
   );
   const [isFeatured, setIsFeatured] = useState(
     initialPart ? initialPart.is_featured : false
@@ -40,16 +46,48 @@ export function PartForm({ initialPart }: PartFormProps) {
   const [description, setDescription] = useState(
     initialPart?.description || ''
   );
-  const [compatibilityMake, setCompatibilityMake] = useState('');
-  const [compatibilityModel, setCompatibilityModel] = useState('');
-  const [compatibilityYears, setCompatibilityYears] = useState('');
-  const [compatibilityEngine, setCompatibilityEngine] = useState('');
+  const [compatibilityMake, setCompatibilityMake] = useState(
+    initialPart?.compatibility?.[0]?.make || ''
+  );
+  const [compatibilityModel, setCompatibilityModel] = useState(
+    initialPart?.compatibility?.[0]?.model || ''
+  );
+  const [compatibilityYears, setCompatibilityYears] = useState(
+    initialPart?.compatibility?.[0]?.years || ''
+  );
+  const [compatibilityEngine, setCompatibilityEngine] = useState(
+    initialPart?.compatibility?.[0]?.engine || ''
+  );
 
-  const [specMaterial, setSpecMaterial] = useState(initialPart?.specifications?.Material || '');
-  const [specWarranty, setSpecWarranty] = useState(initialPart?.specifications?.Warranty || '');
-  const [specOrigin, setSpecOrigin] = useState(initialPart?.specifications?.['Country of Origin'] || '');
+  const [specMaterial, setSpecMaterial] = useState(
+    initialPart?.specifications?.Material || ''
+  );
+  const [specWarranty, setSpecWarranty] = useState(
+    initialPart?.specifications?.Warranty || ''
+  );
+  const [specOrigin, setSpecOrigin] = useState(
+    initialPart?.specifications?.['Country of Origin'] || ''
+  );
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!initialPart) return;
+    const confirmed = await confirmAction({
+      title: 'Delete Part & Inventory Permanently',
+      message: `Are you sure you want to permanently delete "${initialPart.name}" (${initialPart.sku}) and all of its nested inventory, images, compatibility records, and cart items? This action cannot be undone.`,
+      confirmLabel: 'Delete Permanently',
+    });
+    if (!confirmed) return;
+    setIsDeleting(true);
+    try {
+      await deletePart(initialPart.id);
+      router.push('/admin/parts');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,10 +111,15 @@ export function PartForm({ initialPart }: PartFormProps) {
     const selectedCategory = categories.find((c) => c.slug === categorySlug);
     if (!selectedBrand) errs.brand = 'Choose a manufacturer brand.';
     if (!selectedCategory) errs.category = 'Choose a product category.';
-    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    if (!selectedBrand || !selectedCategory || Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
 
     const payload = {
-      slug: initialPart?.slug || slugify(`${selectedBrand?.name || name}-${name}-${sku}`),
+      slug:
+        initialPart?.slug ||
+        slugify(`${selectedBrand?.name || name}-${name}-${sku}`),
       sku: sku.trim().toUpperCase(),
       name: name.trim(),
       brand_id: selectedBrand.id,
@@ -115,7 +158,10 @@ export function PartForm({ initialPart }: PartFormProps) {
       else await addPart(payload);
       router.push('/admin/parts');
     } catch (error) {
-      setErrors({ submit: error instanceof Error ? error.message : 'Unable to save this part.' });
+      setErrors({
+        submit:
+          error instanceof Error ? error.message : 'Unable to save this part.',
+      });
     }
   };
 
@@ -143,6 +189,9 @@ export function PartForm({ initialPart }: PartFormProps) {
                 </option>
               ))}
             </select>
+            {errors.brand && (
+              <p className="text-xs text-red-700 mt-1">{errors.brand}</p>
+            )}
           </div>
 
           <div>
@@ -161,7 +210,9 @@ export function PartForm({ initialPart }: PartFormProps) {
                 </option>
               ))}
             </select>
-            {errors.category && <p className="text-xs text-red-700 mt-1">{errors.category}</p>}
+            {errors.category && (
+              <p className="text-xs text-red-700 mt-1">{errors.category}</p>
+            )}
           </div>
 
           <div>
@@ -175,7 +226,9 @@ export function PartForm({ initialPart }: PartFormProps) {
               placeholder="e.g. BRM-P83-145N"
               className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg font-mono uppercase"
             />
-            {errors.sku && <p className="text-xs text-red-700 mt-1">{errors.sku}</p>}
+            {errors.sku && (
+              <p className="text-xs text-red-700 mt-1">{errors.sku}</p>
+            )}
           </div>
 
           <div className="sm:col-span-2 lg:col-span-3">
@@ -189,7 +242,9 @@ export function PartForm({ initialPart }: PartFormProps) {
               placeholder="e.g. Front brake pad set"
               className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
             />
-            {errors.name && <p className="text-xs text-red-700 mt-1">{errors.name}</p>}
+            {errors.name && (
+              <p className="text-xs text-red-700 mt-1">{errors.name}</p>
+            )}
           </div>
         </div>
       </section>
@@ -210,7 +265,9 @@ export function PartForm({ initialPart }: PartFormProps) {
               onChange={(e) => setPrice(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg font-mono tabular-nums"
             />
-            {errors.price && <p className="text-xs text-red-700 mt-1">{errors.price}</p>}
+            {errors.price && (
+              <p className="text-xs text-red-700 mt-1">{errors.price}</p>
+            )}
           </div>
 
           <div>
@@ -236,7 +293,9 @@ export function PartForm({ initialPart }: PartFormProps) {
               onChange={(e) => setStock(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg font-mono tabular-nums"
             />
-            {errors.stock && <p className="text-xs text-red-700 mt-1">{errors.stock}</p>}
+            {errors.stock && (
+              <p className="text-xs text-red-700 mt-1">{errors.stock}</p>
+            )}
           </div>
 
           <div>
@@ -250,7 +309,6 @@ export function PartForm({ initialPart }: PartFormProps) {
             >
               <option value="Active">Active</option>
               <option value="Out of Stock">Out of Stock</option>
-              <option value="Archived">Archived</option>
             </select>
           </div>
         </div>
@@ -371,11 +429,11 @@ export function PartForm({ initialPart }: PartFormProps) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <MediaUploadInput
-            label="Catalog Product Image"
+            label="Catalog Product Image (Cloudinary / Facebook / YouTube / Upload)"
             value={primaryImage}
             onChange={setPrimaryImage}
             cloudinaryFolder="products"
-            helperText="Uploads are stored under NorthBros Garage/products."
+            helperText="Paste any Cloudinary, Facebook, or YouTube image link, or upload a photo directly to Cloudinary."
           />
 
           <div className="flex items-center pt-5">
@@ -394,20 +452,35 @@ export function PartForm({ initialPart }: PartFormProps) {
 
       {errors.submit && <p className="text-xs text-red-700">{errors.submit}</p>}
 
-      <div className="flex items-center justify-end gap-3">
-        <button
-          type="button"
-          onClick={() => router.push('/admin/parts')}
-          className="px-5 py-2.5 bg-white border border-[#E5E5E0] text-[#141413] text-xs font-semibold rounded-lg"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="px-6 py-2.5 bg-[#141413] hover:bg-neutral-800 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-        >
-          {initialPart ? 'Save Part Updates' : 'Publish Part to Catalog'}
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          {initialPart && (
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={() => void handleDelete()}
+              className="px-4 py-2.5 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 text-xs font-semibold rounded-lg inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {isDeleting ? 'Deleting…' : 'Delete Part Permanently'}
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => router.push('/admin/parts')}
+            className="px-5 py-2.5 bg-white border border-[#E5E5E0] text-[#141413] text-xs font-semibold rounded-lg cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-6 py-2.5 bg-[#141413] hover:bg-neutral-800 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+          >
+            {initialPart ? 'Save Part Updates' : 'Publish Part to Catalog'}
+          </button>
+        </div>
       </div>
     </form>
   );

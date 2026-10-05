@@ -9,7 +9,7 @@ import { formatDate, formatCurrency } from '@/lib/utils/format';
 import { ServiceBookingStatus } from '@/types/database';
 
 export default function AdminAppointmentsPage() {
-  const { serviceBookings, updateServiceBookingStatus } = useStore();
+  const { serviceBookings, updateServiceBookingStatus, showToast } = useStore();
   const { getCurrency } = useAppSettings();
   const [staff, setStaff] = useState<Array<{id:string;name:string}>>([]);
   const [branches, setBranches] = useState<Array<{id:string;name:string}>>([]);
@@ -76,8 +76,9 @@ export default function AdminAppointmentsPage() {
                         if (!c || !e.target.value) return;
                         const result = await c.from('appointments').update({ branch_id: e.target.value }).eq('id', booking.id);
                         if (result.error) {
-                          window.alert(result.error.message);
+                          showToast(result.error.message, 'error');
                         } else {
+                          showToast('Branch updated.');
                           window.location.reload();
                         }
                       }}
@@ -95,8 +96,11 @@ export default function AdminAppointmentsPage() {
                         const c = createClient();
                         if (!c) return;
                         const result = await c.from('appointments').update({ assigned_staff_id: e.target.value || null }).eq('id', booking.id);
-                        if (result.error) window.alert(result.error.message);
-                        else window.location.reload();
+                        if (result.error) showToast(result.error.message, 'error');
+                        else {
+                          showToast('Technician updated.');
+                          window.location.reload();
+                        }
                       }}
                       className="px-2.5 py-1 text-xs font-semibold bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
                     >

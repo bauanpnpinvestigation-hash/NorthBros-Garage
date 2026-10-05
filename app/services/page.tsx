@@ -9,7 +9,7 @@ export default function ServicesPage() {
   const { services } = useStore();
   const [serviceCategories, setServiceCategories] = useState<Array<{id:string;name:string;slug:string}>>([]);
   const [selectedCat, setSelectedCat] = useState('all');
-  useEffect(() => { const c=createClient(); if(!c) return; void c.from('service_categories').select('id,name,slug').eq('is_active',true).order('sort_order').order('name').then(({data})=>setServiceCategories((data||[]) as Array<{id:string;name:string;slug:string}>)); }, []);
+  useEffect(() => { const c=createClient(); if(!c) return; void c.from('service_categories').select('id,name,slug').eq('is_active',true).order('sort_order').order('name').then(({data}:any)=>setServiceCategories((data||[]) as Array<{id:string;name:string;slug:string}>)); }, []);
 
   const filtered =
     selectedCat === 'all'

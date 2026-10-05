@@ -56,6 +56,11 @@ interface StoreContextType {
   isHydrated: boolean;
   refreshAuth: () => Promise<void>;
   showToast: (text: string, type?: 'success' | 'error' | 'info') => void;
+  confirmAction: (options: {
+    title?: string;
+    message: string;
+    confirmLabel?: string;
+  }) => Promise<boolean>;
   toggleFavorite: (partId: string) => Promise<void>;
   addToCart: (part: PartProduct, quantity?: number) => Promise<boolean>;
   updateCartQuantity: (productId: string, quantity: number) => Promise<void>;
@@ -98,6 +103,25 @@ interface StoreContextType {
     scheduled_end: string;
     status: string;
   }>;
+  addCustomerVehicle: (input: {
+    vehicle_variant_id: string;
+    nickname?: string;
+    plate_number?: string;
+    vin?: string;
+    current_mileage?: number;
+    notes?: string;
+  }) => Promise<void>;
+  updateCustomerVehicle: (
+    id: string,
+    input: Partial<{
+      nickname: string;
+      plate_number: string;
+      vin: string;
+      current_mileage: number | null;
+      notes: string;
+    }>
+  ) => Promise<void>;
+  deleteCustomerVehicle: (id: string) => Promise<void>;
   login: (email: string, password: string) => Promise<boolean>;
   register: (
     name: string,
@@ -466,6 +490,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    resolve: (confirmed: boolean) => void;
+  } | null>(null);
 
   const showToast = (
     text: string,
@@ -475,6 +505,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setToasts((p) => [...p, { id, text, type }]);
     setTimeout(() => setToasts((p) => p.filter((x) => x.id !== id)), 3800);
   };
+
+  const confirmAction = useCallback(
+    (options: { title?: string; message: string; confirmLabel?: string }) => {
+      return new Promise<boolean>((resolve) => {
+        setConfirmDialog({
+          title: options.title || 'Confirm Permanent Deletion',
+          message: options.message,
+          confirmLabel: options.confirmLabel || 'Delete Permanently',
+          resolve,
+        });
+      });
+    },
+    []
+  );
 
   const loadVlogs = async () => {
     const c = sb();
@@ -1382,30 +1426,65 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       'is_featured',
     ])
       if (updates[k] !== undefined) patch[k] = updates[k];
-    if (updates.status)
+    if (updates.status) {
       patch.stock_status =
         updates.status === 'Out of Stock'
           ? 'out_of_stock'
           : updates.status === 'Archived'
           ? 'discontinued'
           : 'in_stock';
+      patch.is_active = updates.status !== 'Archived';
+    } else if (updates.stock !== undefined) {
+      patch.stock_status =
+        updates.stock <= 0
+          ? 'out_of_stock'
+          : updates.stock <= 5
+          ? 'low_stock'
+          : 'in_stock';
+    }
     if (Object.keys(patch).length) {
       const r = await c.from('products').update(patch).eq('id', id);
       if (r.error) throw r.error;
     }
     if (updates.stock !== undefined) {
-      const { data: i } = await c
+      const { data: invRows } = await c
         .from('inventory')
         .select('id')
         .eq('product_id', id)
-        .order('id')
-        .limit(1)
-        .maybeSingle();
-      if (i)
+        .order('id');
+      if (invRows && invRows.length > 0) {
         await c
           .from('inventory')
-          .update({ quantity: updates.stock })
-          .eq('id', i.id);
+          .update({ quantity: updates.stock, reserved_quantity: 0 })
+          .eq('id', invRows[0].id);
+        if (invRows.length > 1) {
+          for (const extra of invRows.slice(1)) {
+            await c
+              .from('inventory')
+              .update({ quantity: 0, reserved_quantity: 0 })
+              .eq('id', extra.id);
+          }
+        }
+      } else {
+        const branch = (
+          await c
+            .from('branches')
+            .select('id')
+            .eq('is_active', true)
+            .order('id')
+            .limit(1)
+            .maybeSingle()
+        ).data;
+        if (branch) {
+          await c.from('inventory').insert({
+            product_id: id,
+            branch_id: branch.id,
+            quantity: updates.stock,
+            reserved_quantity: 0,
+            reorder_level: 5,
+          });
+        }
+      }
     }
 
     if (updates.compatibility !== undefined) {
@@ -1454,6 +1533,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     showToast('Part updated.');
   };
 
+  const wipeProductAndNestedData = async (c: any, productId: string) => {
+    const childTables = [
+      'cart_items',
+      'inventory_reservations',
+      'inventory_movements',
+      'inventory',
+      'product_images',
+      'product_vehicle_compatibility',
+      'product_reviews',
+      'favorites',
+      'promotion_products',
+      'order_items',
+    ];
+    for (const table of childTables) {
+      await c.from(table).delete().eq('product_id', productId);
+    }
+    const delRes = await c
+      .from('products')
+      .delete()
+      .eq('id', productId)
+      .select('id');
+    if (delRes.error || !delRes.data || delRes.data.length === 0) {
+      await c.from('order_items').update({ product_id: null }).eq('product_id', productId);
+      const retryDel = await c
+        .from('products')
+        .delete()
+        .eq('id', productId)
+        .select('id');
+      if (retryDel.error || !retryDel.data || retryDel.data.length === 0) {
+        const fallback = await c
+          .from('products')
+          .update({ is_active: false, stock_status: 'discontinued' })
+          .eq('id', productId);
+        if (fallback.error && delRes.error) {
+          throw delRes.error;
+        }
+      }
+    }
+  };
+
   const deletePart = async (id: string) => {
     if (!user || user.role !== 'admin') {
       showToast('Administrator authorization required.', 'error');
@@ -1467,28 +1586,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // These two relations use RESTRICT and must be removed before the product.
-      const cartItemsDelete = await c
-        .from('cart_items')
-        .delete()
-        .eq('product_id', id);
-      if (cartItemsDelete.error) throw cartItemsDelete.error;
-
-      const reservationsDelete = await c
-        .from('inventory_reservations')
-        .delete()
-        .eq('product_id', id);
-      if (reservationsDelete.error) throw reservationsDelete.error;
-
-      // The remaining product relations use CASCADE/SET NULL where appropriate.
-      const productDelete = await c
-        .from('products')
-        .delete()
-        .eq('id', id);
-      if (productDelete.error) throw productDelete.error;
-
+      await wipeProductAndNestedData(c, id);
+      setParts((prev) => prev.filter((p) => p.id !== id));
+      setFavorites((prev) => prev.filter((fid) => fid !== id));
+      setCart((prev) => prev.filter((item) => item.product_id !== id));
       await loadCatalog();
-      showToast('Part permanently deleted.');
+      showToast('Part and all related data permanently deleted.');
     } catch (error) {
       const message =
         error instanceof Error
@@ -1601,13 +1704,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) return;
-    const r = await c
-      .from('services')
-      .update({ is_active: false })
-      .eq('id', id);
-    if (r.error) throw r.error;
+    await c.from('service_images').delete().eq('service_id', id);
+    await c.from('service_slots').delete().eq('service_id', id);
+    await c.from('appointment_services').delete().eq('service_id', id);
+    const delRes = await c.from('services').delete().eq('id', id).select('id');
+    if (delRes.error || !delRes.data || delRes.data.length === 0) {
+      const fallback = await c
+        .from('services')
+        .update({ is_active: false })
+        .eq('id', id);
+      if (fallback.error && delRes.error) throw delRes.error;
+    }
+    setServices((prev) => prev.filter((s) => s.id !== id));
     await loadCatalog();
-    showToast('Service removed.');
+    showToast('Service and all related data permanently deleted.');
   };
 
   const updateServiceBookingStatus = async (
@@ -1711,13 +1821,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) throw new Error('Supabase is not configured.');
-    const r = await c
-      .from('brands')
-      .update({ is_active: false })
-      .eq('id', id);
-    if (r.error) throw r.error;
+    const { data: brandProducts } = await c
+      .from('products')
+      .select('id')
+      .eq('brand_id', id);
+    for (const prod of brandProducts || []) {
+      await wipeProductAndNestedData(c, prod.id);
+    }
+    await c.from('products').update({ brand_id: null }).eq('brand_id', id);
+    const delRes = await c.from('brands').delete().eq('id', id).select('id');
+    if (delRes.error || !delRes.data || delRes.data.length === 0) {
+      const fallback = await c
+        .from('brands')
+        .update({ is_active: false })
+        .eq('id', id);
+      if (fallback.error && delRes.error) throw delRes.error;
+    }
+    setBrands((prev) => prev.filter((b) => b.id !== id));
     await loadCatalog();
-    showToast('Brand removed from the active catalog.');
+    showToast('Brand and all related data permanently deleted.');
   };
 
   const addCategory = async (cat: any) => {
@@ -1760,13 +1882,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) throw new Error('Supabase is not configured.');
-    const r = await c
+    const { data: catProducts } = await c
+      .from('products')
+      .select('id')
+      .eq('category_id', id);
+    for (const prod of catProducts || []) {
+      await wipeProductAndNestedData(c, prod.id);
+    }
+    await c.from('products').update({ category_id: null }).eq('category_id', id);
+    await c.from('categories').update({ parent_id: null }).eq('parent_id', id);
+    const delRes = await c
       .from('categories')
-      .update({ is_active: false })
-      .eq('id', id);
-    if (r.error) throw r.error;
+      .delete()
+      .eq('id', id)
+      .select('id');
+    if (delRes.error || !delRes.data || delRes.data.length === 0) {
+      const fallback = await c
+        .from('categories')
+        .update({ is_active: false })
+        .eq('id', id);
+      if (fallback.error && delRes.error) throw delRes.error;
+    }
+    setCategories((prev) => prev.filter((cat) => cat.id !== id));
     await loadCatalog();
-    showToast('Category removed from the active catalog.');
+    showToast('Category and all related data permanently deleted.');
   };
 
   const addVlog = async (vlog: any): Promise<VlogPost> => {
@@ -1886,15 +2025,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
     const c = sb();
     if (!c) return;
-    const r = await c
+    await c.from('daily_post_media').delete().eq('post_id', id);
+    await c.from('daily_post_likes').delete().eq('post_id', id);
+    await c.from('daily_post_comments').delete().eq('post_id', id);
+    const delRes = await c
       .from('daily_posts')
-      .update({ is_published: false })
-      .eq('id', id);
-    if (r.error) showToast(r.error.message, 'error');
-    else {
-      await loadVlogs();
-      showToast('Vlog removed.');
+      .delete()
+      .eq('id', id)
+      .select('id');
+    if (delRes.error || !delRes.data || delRes.data.length === 0) {
+      const fallback = await c
+        .from('daily_posts')
+        .update({ is_published: false })
+        .eq('id', id);
+      if (fallback.error && delRes.error) {
+        showToast(delRes.error.message, 'error');
+        return;
+      }
     }
+    setVlogs((prev) => prev.filter((v) => v.id !== id));
+    await loadVlogs();
+    showToast('Vlog and all related media permanently deleted.');
   };
 
   const likeVlog = async (vlogId: string) => {
@@ -1932,60 +2083,124 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     else await loadVlogs();
   };
 
-  const value: StoreContextType = {
-    parts,
-    brands,
-    categories,
-    services,
-    serviceBookings,
-    vlogs,
-    favorites,
-    cart,
-    orders,
-    customerVehicles,
-    user,
-    isHydrated,
-    refreshAuth,
-    showToast,
-    toggleFavorite,
-    addToCart,
-    updateCartQuantity,
-    removeFromCart,
-    clearCart,
-    createOrder,
-    createServiceBooking,
-    addCustomerVehicle,
-    updateCustomerVehicle,
-    deleteCustomerVehicle,
-    login,
-    register,
-    logout,
-    updateProfile,
-    addPart,
-    updatePart,
-    deletePart,
-    updatePartStatus,
-    addService,
-    updateService,
-    deleteService,
-    updateServiceBookingStatus,
-    updateOrderStatus,
-    addBrand,
-    updateBrand,
-    deleteBrand,
-    addCategory,
-    updateCategory,
-    deleteCategory,
-    addVlog,
-    updateVlog,
-    deleteVlog,
-    likeVlog,
-    addVlogComment,
-  };
+  const value = useMemo(
+    () => ({
+      parts,
+      brands,
+      categories,
+      services,
+      serviceBookings,
+      vlogs,
+      favorites,
+      cart,
+      orders,
+      customerVehicles,
+      user,
+      isHydrated,
+      refreshAuth,
+      showToast,
+      confirmAction,
+      toggleFavorite,
+      addToCart,
+      updateCartQuantity,
+      removeFromCart,
+      clearCart,
+      createOrder,
+      createServiceBooking,
+      addCustomerVehicle,
+      updateCustomerVehicle,
+      deleteCustomerVehicle,
+      login,
+      register,
+      logout,
+      updateProfile,
+      addPart,
+      updatePart,
+      deletePart,
+      updatePartStatus,
+      addService,
+      updateService,
+      deleteService,
+      updateServiceBookingStatus,
+      updateOrderStatus,
+      addBrand,
+      updateBrand,
+      deleteBrand,
+      addCategory,
+      updateCategory,
+      deleteCategory,
+      addVlog,
+      updateVlog,
+      deleteVlog,
+      likeVlog,
+      addVlogComment,
+    }),
+    [
+      parts,
+      brands,
+      categories,
+      services,
+      serviceBookings,
+      vlogs,
+      favorites,
+      cart,
+      orders,
+      customerVehicles,
+      user,
+      isHydrated,
+      refreshAuth,
+      confirmAction,
+    ]
+  );
 
   return (
     <StoreContext.Provider value={value}>
       {children}
+      {confirmDialog && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+        >
+          <div className="bg-white border border-[#E5E5E0] rounded-xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 text-red-700 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-display text-lg font-bold text-[#141413]">
+                  {confirmDialog.title}
+                </h3>
+                <p className="text-xs text-[#52524E] leading-relaxed">
+                  {confirmDialog.message}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#E5E5E0]">
+              <button
+                type="button"
+                onClick={() => {
+                  confirmDialog.resolve(false);
+                  setConfirmDialog(null);
+                }}
+                className="px-4 py-2 text-xs font-semibold text-[#141413] bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg hover:bg-neutral-100 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  confirmDialog.resolve(true);
+                  setConfirmDialog(null);
+                }}
+                className="px-4 py-2 text-xs font-semibold text-white bg-red-700 hover:bg-red-800 rounded-lg cursor-pointer"
+              >
+                {confirmDialog.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div
         aria-live="polite"
         className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"

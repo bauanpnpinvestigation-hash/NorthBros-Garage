@@ -67,7 +67,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
 
     const {
       data: { subscription },
-    } = client.auth.onAuthStateChange((event) => {
+    } = client.auth.onAuthStateChange((event: any) => {
       if (event === 'SIGNED_OUT') {
         void refreshSettings(false);
       }

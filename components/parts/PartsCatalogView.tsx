@@ -24,7 +24,7 @@ export function PartsCatalogView({
   const searchParams = useSearchParams();
   const { parts, brands, categories } = useStore();
   const [vehicleMakes, setVehicleMakes] = useState<Array<{id:string;name:string;slug:string}>>([]);
-  useEffect(() => { const c=createClient(); if(!c) return; void c.from('vehicle_makes').select('id,name,slug').eq('is_active',true).order('name').then(({data})=>setVehicleMakes((data||[]) as Array<{id:string;name:string;slug:string}>)); }, []);
+  useEffect(() => { const c=createClient(); if(!c) return; void c.from('vehicle_makes').select('id,name,slug').eq('is_active',true).order('name').then(({data}:any)=>setVehicleMakes((data||[]) as Array<{id:string;name:string;slug:string}>)); }, []);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const q = searchParams.get('q') || '';

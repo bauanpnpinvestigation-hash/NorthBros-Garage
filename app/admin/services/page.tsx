@@ -10,7 +10,8 @@ import { AutomotiveService } from '@/types/database';
 import { createClient } from '@/lib/supabase/client';
 
 export default function AdminServicesPage() {
-  const { services, addService, updateService, deleteService } = useStore();
+  const { services, addService, updateService, deleteService, confirmAction } =
+    useStore();
   const { getCurrency } = useAppSettings();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -29,7 +30,7 @@ export default function AdminServicesPage() {
   useEffect(() => {
     const c = createClient();
     if (!c) return;
-    void c.from('service_categories').select('id,name,slug,is_active').order('sort_order').order('name').then(({ data, error }) => {
+    void c.from('service_categories').select('id,name,slug,is_active').order('sort_order').order('name').then(({ data, error }: any) => {
       if (error) setError(error.message);
       const active = (data || []).filter((x: any) => x.is_active);
       setServiceCategories(active);
@@ -94,8 +95,6 @@ export default function AdminServicesPage() {
       included_operations: [],
       recommended_interval: '',
       image_url: imageUrl.trim(),
-      is_bookable: true,
-      requires_inspection: false,
     };
 
     try {
@@ -111,13 +110,18 @@ export default function AdminServicesPage() {
   };
 
   const handleDelete = async (service: (typeof services)[number]) => {
-    if (!window.confirm(`Remove "${service.name}" from the active services?`)) return;
+    const confirmed = await confirmAction({
+      title: 'Delete Service Permanently',
+      message: `Are you sure you want to permanently delete "${service.name}" and all related service images, slots, and records? This action cannot be undone.`,
+      confirmLabel: 'Delete Permanently',
+    });
+    if (!confirmed) return;
     setError('');
     try {
       await deleteService(service.id);
       if (editingId === service.id) reset();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to remove service.');
+      setError(err instanceof Error ? err.message : 'Unable to delete service.');
     }
   };
 

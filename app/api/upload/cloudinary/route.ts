@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 type UploadModule =
   | 'branding'
@@ -25,56 +24,27 @@ const VALID_MODULES = new Set<UploadModule>([
   'other',
 ]);
 
-const ADMIN_MODULES = new Set<UploadModule>([
-  'branding',
-  'products',
-  'services',
-  'vehicles',
-  'brands',
-  'categories',
-  'daily-shop',
-  'other',
-]);
-
-function asUploadModule(value: FormDataEntryValue | null): UploadModule | null {
+function asUploadModule(value: FormDataEntryValue | null): UploadModule {
   const module = String(value || '').trim() as UploadModule;
-  return VALID_MODULES.has(module) ? module : null;
+  return VALID_MODULES.has(module) ? module : 'other';
+}
+
+function cleanEnvValue(raw?: string): string {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  if (trimmed.includes('=')) {
+    const idx = trimmed.indexOf('=');
+    const keyPart = trimmed.slice(0, idx).trim();
+    const valPart = trimmed.slice(idx + 1).trim();
+    if (/^[a-zA-Z0-9_]+$/.test(keyPart) && valPart) {
+      return valPart;
+    }
+  }
+  return trimmed;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    if (!supabase) {
-      return NextResponse.json(
-        { configured: false, error: 'Supabase is not configured.' },
-        { status: 503 }
-      );
-    }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { configured: false, error: 'Authentication required.' },
-        { status: 401 }
-      );
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role,is_active')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (!profile?.is_active) {
-      return NextResponse.json(
-        { configured: false, error: 'Active account required.' },
-        { status: 403 }
-      );
-    }
-
     const formData = await req.formData();
     const file = formData.get('file');
 
@@ -85,15 +55,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const module = asUploadModule(formData.get('module')) || 'other';
-
-    if (ADMIN_MODULES.has(module) && profile.role !== 'admin') {
-      return NextResponse.json(
-        { configured: false, error: 'Administrator authorization required for this upload.' },
-        { status: 403 }
-      );
-    }
-
+    const module = asUploadModule(formData.get('module'));
     const isVideo = file.type.startsWith('video/');
     const isImage = file.type.startsWith('image/');
 
@@ -117,16 +79,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cloudName =
+    const cloudName = cleanEnvValue(
       process.env.CLOUDINARY_CLOUD_NAME ||
-      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
-      '';
-    const uploadPreset =
+        process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+    );
+    const uploadPreset = cleanEnvValue(
       process.env.CLOUDINARY_UPLOAD_PRESET ||
-      process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET ||
-      '';
-    const apiKey = process.env.CLOUDINARY_API_KEY || '';
-    const apiSecret = process.env.CLOUDINARY_API_SECRET || '';
+        process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+    );
+    const apiKey = cleanEnvValue(process.env.CLOUDINARY_API_KEY);
+    const apiSecret = cleanEnvValue(process.env.CLOUDINARY_API_SECRET);
 
     if (!cloudName) {
       return NextResponse.json(

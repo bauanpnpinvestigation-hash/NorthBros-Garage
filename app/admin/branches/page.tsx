@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { AdminShell } from '@/components/admin/AdminShell';
+import { useStore } from '@/components/shared/StoreProvider';
 import { createClient } from '@/lib/supabase/client';
 
 type Branch = {
@@ -15,6 +16,7 @@ export default function AdminBranchesPage(){
   const [rows,setRows]=useState<Branch[]>([]); const [form,setForm]=useState(empty); const [editing,setEditing]=useState<string|null>(null);
   const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false); const [error,setError]=useState('');
   const client=createClient();
+  const { confirmAction } = useStore();
 
   const load=async()=>{ if(!client)return; setLoading(true); const {data,error}=await client.from('branches').select('*').order('name'); if(error)setError(error.message); else setRows((data||[]) as Branch[]); setLoading(false); };
   useEffect(()=>{void load()},[]);
@@ -25,7 +27,7 @@ export default function AdminBranchesPage(){
     if(r.error)setError(r.error.message);else{setForm(empty);setEditing(null);await load();}setSaving(false);
   };
   const edit=(b:Branch)=>{setEditing(b.id);setForm({name:b.name,code:b.code,address:b.address||'',city:b.city||'',province:b.province||'',postal_code:b.postal_code||'',phone:b.phone||'',email:b.email||'',opening_time:(b.opening_time||'').slice(0,5),closing_time:(b.closing_time||'').slice(0,5),is_active:b.is_active});window.scrollTo({top:0,behavior:'smooth'})};
-  const toggle=async(b:Branch)=>{if(!client)return;const r=await client.from('branches').update({is_active:!b.is_active}).eq('id',b.id);if(r.error)setError(r.error.message);else await load()};
+  const handleDelete=async(b:Branch)=>{if(!client)return;const ok=await confirmAction({title:'Delete Branch Permanently',message:`Are you sure you want to permanently delete "${b.name}" and its related records?`,confirmLabel:'Delete Permanently'});if(!ok)return;await client.from('inventory').delete().eq('branch_id',b.id);await client.from('service_slots').delete().eq('branch_id',b.id);await client.from('staff_profiles').update({branch_id:null}).eq('branch_id',b.id);await client.from('appointments').update({branch_id:null}).eq('branch_id',b.id);const r=await client.from('branches').delete().eq('id',b.id);if(r.error)setError(r.error.message);else await load()};
 
   return <AdminShell title="Branches & Locations" subtitle="Manage locations, contact details, hours, and active status for multi-branch businesses.">
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
@@ -36,7 +38,7 @@ export default function AdminBranchesPage(){
         <label className="flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={form.is_active} onChange={e=>setForm({...form,is_active:e.target.checked})}/> Active branch</label>
         {error&&<p className="text-xs text-red-700">{error}</p>}<button disabled={saving} className="w-full py-2.5 bg-[#141413] text-white text-xs font-semibold rounded-lg">{saving?'Saving…':editing?'Save Changes':'Create Branch'}</button>
       </form>
-      <section className="xl:col-span-7 bg-white border border-[#E5E5E0] rounded-xl p-6"><h2 className="font-display text-base font-bold mb-5">Branches ({rows.length})</h2>{loading?<p className="text-sm text-[#6E6E68]">Loading…</p>:<div className="space-y-3">{rows.map(b=><div key={b.id} className="border border-[#E5E5E0] rounded-lg p-4 flex items-center justify-between gap-4"><div><p className="font-semibold text-sm">{b.name} <span className="font-mono text-[10px] text-[#6E6E68]">{b.code}</span></p><p className="text-xs text-[#52524E]">{[b.address,b.city,b.province].filter(Boolean).join(', ')||'No address'} · {b.opening_time?.slice(0,5)||'—'}–{b.closing_time?.slice(0,5)||'—'}</p><p className="text-[11px] text-[#6E6E68]">{b.is_active?'Active':'Inactive'}</p></div><div className="flex gap-3 text-xs"><button onClick={()=>edit(b)} className="font-semibold hover:underline">Edit</button><button onClick={()=>void toggle(b)} className="font-semibold text-red-700 hover:underline">{b.is_active?'Deactivate':'Activate'}</button></div></div>)}</div>}</section>
+      <section className="xl:col-span-7 bg-white border border-[#E5E5E0] rounded-xl p-6"><h2 className="font-display text-base font-bold mb-5">Branches ({rows.length})</h2>{loading?<p className="text-sm text-[#6E6E68]">Loading…</p>:<div className="space-y-3">{rows.map(b=><div key={b.id} className="border border-[#E5E5E0] rounded-lg p-4 flex items-center justify-between gap-4"><div><p className="font-semibold text-sm">{b.name} <span className="font-mono text-[10px] text-[#6E6E68]">{b.code}</span></p><p className="text-xs text-[#52524E]">{[b.address,b.city,b.province].filter(Boolean).join(', ')||'No address'} · {b.opening_time?.slice(0,5)||'—'}–{b.closing_time?.slice(0,5)||'—'}</p><p className="text-[11px] text-[#6E6E68]">{b.is_active?'Active':'Inactive'}</p></div><div className="flex gap-3 text-xs"><button onClick={()=>edit(b)} className="font-semibold hover:underline">Edit</button><button onClick={()=>void handleDelete(b)} className="font-semibold text-red-700 hover:underline">Delete</button></div></div>)}</div>}</section>
     </div>
   </AdminShell>;
 }

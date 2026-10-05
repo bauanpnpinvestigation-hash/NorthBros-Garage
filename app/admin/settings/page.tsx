@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AdminShell } from '@/components/admin/AdminShell';
 import { MediaUploadInput } from '@/components/shared/MediaUploadInput';
 import { useAppSettings } from '@/components/shared/AppSettingsProvider';
+import { useStore } from '@/components/shared/StoreProvider';
 import { AppSetting } from '@/types/database';
 
 type KnownField = {
@@ -25,7 +26,6 @@ const KNOWN_FIELDS: KnownField[] = [
   { key:'business.hours', label:'Business Hours', category:'Business', description:'Human-readable operating hours.' },
   { key:'business.timezone', label:'Business Timezone', category:'Business', description:'Timezone used when displaying business schedules.' },
   { key:'store.currency', label:'Currency Code', category:'Store', description:'Three-letter ISO currency code used for storefront prices.', type:'text' },
-  { key:'store.currency', label:'Currency', category:'Store', description:'ISO 4217 currency code used for prices and checkout.', type:'text' },
   { key:'store.shipping_fee', label:'Default Shipping Fee', category:'Store', description:'Default storefront shipping fee before free-shipping threshold.', type:'number' },
   { key:'store.free_shipping_threshold', label:'Free Shipping Threshold', category:'Store', description:'Order subtotal that qualifies for free shipping.', type:'number' },
   { key:'homepage.eyebrow', label:'Homepage Eyebrow', category:'Homepage', description:'Small introductory line above the homepage title.' },
@@ -58,6 +58,7 @@ const defaultMainMenu = [
 
 export default function AdminSettingsPage() {
   const { settings, loading, refreshSettings, createSetting, updateSetting, deleteSetting } = useAppSettings();
+  const { confirmAction } = useStore();
   const [values, setValues] = useState<Record<string,string>>({});
   const [saving, setSaving] = useState<string|null>(null);
   const [error, setError] = useState('');
@@ -95,7 +96,6 @@ export default function AdminSettingsPage() {
       'contact.facebook':'',
       'business.hours':'Business hours not configured',
       'business.timezone':'Asia/Manila',
-      'store.currency':'PHP',
       'store.currency':'PHP',
       'store.shipping_fee':250,
       'store.free_shipping_threshold':5000,
@@ -198,7 +198,9 @@ export default function AdminSettingsPage() {
 
       <section className="bg-white border border-[#E5E5E0] rounded-xl p-6">
         <h2 className="font-display text-lg font-bold mb-2">Main Navigation</h2>
-        <p className="text-xs text-[#6E6E68] mb-4">Use Advanced Settings to replace navigation.main_menu with a JSON array such as [{'"'}{"'"}href{"'"'}:{'"'}/parts{"'"'},{"'"'}label{"'"'}:{'"'"}Car Parts{"'"'}{"}"}].</p>
+        <p className="text-xs text-[#6E6E68] mb-4">
+          {'Use Advanced Settings to replace navigation.main_menu with a JSON array such as [{"href":"/parts","label":"Car Parts"}].'}
+        </p>
         <button type="button" onClick={()=>{setAdvancedCategory('navigation');setAdvancedKey('navigation.main_menu');setAdvancedValue(JSON.stringify(defaultMainMenu,null,2));setAdvancedPublic(true);window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})}} className="px-4 py-2 bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg text-xs font-semibold">Load Default Menu into Advanced Editor</button>
       </section>
 
@@ -211,7 +213,7 @@ export default function AdminSettingsPage() {
           <div className="space-y-2"><label className="flex gap-2 text-xs font-semibold"><input type="checkbox" checked={advancedPublic} onChange={e=>setAdvancedPublic(e.target.checked)}/> Public</label><div className="flex gap-2"><button className="flex-1 py-2 bg-[#141413] text-white rounded-lg text-xs font-semibold">{editingAdvancedId?'Save':'Create'}</button>{editingAdvancedId&&<button type="button" onClick={()=>{setEditingAdvancedId(null);setAdvancedKey('');setAdvancedValue('')}} className="px-3 text-xs font-semibold">Cancel</button>}</div></div>
         </form>
         {error&&<p className="text-xs text-red-700 mb-4">{error}</p>}
-        {loading?<p className="text-sm text-[#6E6E68]">Loading settings…</p>:settings.length===0?<p className="text-sm text-[#6E6E68]">No settings yet. Use Quick Business Setup above.</p>:<div className="space-y-5">{Object.entries(grouped).map(([group,items])=><div key={group}><h3 className="text-xs font-bold uppercase tracking-wide text-[#6E6E68] mb-2">{group}</h3><div className="divide-y border border-[#E5E5E0] rounded-lg overflow-hidden">{items.map(item=><div key={item.id} className="p-4 flex items-start justify-between gap-4"><div className="min-w-0"><p className="text-xs font-mono font-semibold break-all">{item.setting_key}</p><pre className="mt-1 text-[11px] whitespace-pre-wrap break-words text-[#52524E] bg-[#FAF9F6] rounded p-2">{displayValue(item.setting_value)}</pre><p className="text-[10px] text-[#6E6E68]">{item.is_public?'Public':'Private'}</p></div><div className="flex gap-3 text-xs shrink-0"><button onClick={()=>editAdvanced(item)} className="font-semibold hover:underline">Edit</button><button onClick={async()=>{if(window.confirm('Delete this setting permanently?')){try{await deleteSetting(item.id)}catch(err){setError(err instanceof Error?err.message:'Unable to delete setting.')}}}} className="font-semibold text-red-700">Delete</button></div></div>)}</div></div>)}</div>}
+        {loading?<p className="text-sm text-[#6E6E68]">Loading settings…</p>:settings.length===0?<p className="text-sm text-[#6E6E68]">No settings yet. Use Quick Business Setup above.</p>:<div className="space-y-5">{Object.entries(grouped).map(([group,items])=><div key={group}><h3 className="text-xs font-bold uppercase tracking-wide text-[#6E6E68] mb-2">{group}</h3><div className="divide-y border border-[#E5E5E0] rounded-lg overflow-hidden">{items.map(item=><div key={item.id} className="p-4 flex items-start justify-between gap-4"><div className="min-w-0"><p className="text-xs font-mono font-semibold break-all">{item.setting_key}</p><pre className="mt-1 text-[11px] whitespace-pre-wrap break-words text-[#52524E] bg-[#FAF9F6] rounded p-2">{displayValue(item.setting_value)}</pre><p className="text-[10px] text-[#6E6E68]">{item.is_public?'Public':'Private'}</p></div><div className="flex gap-3 text-xs shrink-0"><button onClick={()=>editAdvanced(item)} className="font-semibold hover:underline">Edit</button><button onClick={async()=>{const ok=await confirmAction({title:'Delete Setting',message:`Delete "${item.setting_key}" permanently?`,confirmLabel:'Delete Permanently'});if(ok){try{await deleteSetting(item.id)}catch(err){setError(err instanceof Error?err.message:'Unable to delete setting.')}}}} className="font-semibold text-red-700">Delete</button></div></div>)}</div></div>)}</div>}
       </section>
     </div>
   </AdminShell>;

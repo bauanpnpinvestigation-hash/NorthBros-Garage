@@ -1,45 +1,54 @@
 import type { NextConfig } from 'next';
 
-const DEFAULT_SUPABASE_URL = 'https://yrbelimellocykhqjjyw.supabase.co';
-const DEFAULT_SUPABASE_PUBLISHABLE_KEY =
-  'sb_publishable_-S3ldz7d1hqDP9reBoeXrg_RsRkhZtU';
+const FALLBACK_SUPABASE_URL = 'https://yrbelimellocykhqjjyw.supabase.co';
+const FALLBACK_SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyYmVsaW1lbGxvY3lraHFqanl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExOTg3MTYsImV4cCI6MjEwNjc3NDcxNn0.FDD_ZE3K9WvgfLjKkxI_mZlD3McTofflW0Dm1I7fFkE';
 
-function resolveSupabaseUrl(value?: string) {
-  const candidate = value?.trim();
-  if (!candidate) return DEFAULT_SUPABASE_URL;
-
-  try {
-    const url = new URL(candidate);
-    return url.protocol === 'http:' || url.protocol === 'https:'
-      ? candidate.replace(/\/$/, '')
-      : DEFAULT_SUPABASE_URL;
-  } catch {
-    return DEFAULT_SUPABASE_URL;
-  }
-}
-
-function resolveSupabaseKey(value?: string) {
-  const candidate = value?.trim();
+function cleanSupabaseUrl(raw?: string): string {
+  if (!raw) return FALLBACK_SUPABASE_URL;
+  const trimmed = raw.trim();
+  const match = trimmed.match(/https?:\/\/[^\s"'=]+/i);
+  const candidate = match ? match[0] : trimmed;
   if (
-    candidate &&
-    candidate !== 'your-supabase-anon-key' &&
-    candidate !== 'MY_SUPABASE_ANON_KEY'
+    !candidate ||
+    !/^https?:\/\//i.test(candidate) ||
+    candidate === 'https://your-project-id.supabase.co'
   ) {
-    return candidate;
+    return FALLBACK_SUPABASE_URL;
   }
-
-  return DEFAULT_SUPABASE_PUBLISHABLE_KEY;
+  return candidate.replace(/\/+$/, '');
 }
 
-const supabaseUrl = resolveSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
-const supabaseAnonKey = resolveSupabaseKey(
+function cleanSupabaseKey(raw?: string): string {
+  if (!raw) return FALLBACK_SUPABASE_ANON_KEY;
+  let candidate = raw.trim();
+  if (candidate.includes('=')) {
+    const idx = candidate.indexOf('=');
+    const after = candidate.slice(idx + 1).trim();
+    if (after) candidate = after;
+  }
+  if (!candidate || candidate === 'your-supabase-anon-key') {
+    return FALLBACK_SUPABASE_ANON_KEY;
+  }
+  return candidate;
+}
+
+const resolvedSupabaseUrl = cleanSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
+const resolvedSupabaseAnonKey = cleanSupabaseKey(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
+
+process.env.NEXT_PUBLIC_SUPABASE_URL = resolvedSupabaseUrl;
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = resolvedSupabaseAnonKey;
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: false },
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: resolvedSupabaseUrl,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: resolvedSupabaseAnonKey,
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**' },
@@ -48,10 +57,6 @@ const nextConfig: NextConfig = {
   },
   output: 'standalone',
   transpilePackages: ['motion'],
-  env: {
-    NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey,
-  },
   webpack: (config, { dev }) => {
     if (dev && process.env.DISABLE_HMR === 'true') {
       config.watchOptions = { ignored: /.*/ };

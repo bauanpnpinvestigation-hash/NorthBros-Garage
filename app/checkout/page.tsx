@@ -38,7 +38,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     const c = createClient();
     if (!c) { setPaymentLoading(false); return; }
-    void c.from('payment_methods').select('code,name,description').eq('is_enabled', true).order('sort_order').then(({ data, error }) => {
+    void c.from('payment_methods').select('code,name,description').eq('is_enabled', true).order('sort_order').then(({ data, error }: any) => {
       if (error) setErrors((current) => ({ ...current, submit: error.message }));
       else {
         const methods = (data || []) as Array<{code:string;name:string;description:string|null}>;
