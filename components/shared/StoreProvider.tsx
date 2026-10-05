@@ -1725,9 +1725,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (!c) return;
     const map: any = {
       Confirmed: 'confirmed',
+      'Checked In': 'checked_in',
       'In Service Bay': 'in_progress',
       Completed: 'completed',
       Cancelled: 'cancelled',
+      'No Show': 'no_show',
       Pending: 'pending',
     };
     const r = await c
