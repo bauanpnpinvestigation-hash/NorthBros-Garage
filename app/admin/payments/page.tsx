@@ -349,7 +349,7 @@ export default function AdminPaymentsPage() {
                       setSettings({ ...settings, cod_enabled: e.target.checked })
                     }
                   />
-                  COD enabled
+                  Offline / pay-on-delivery enabled
                 </label>
 
                 <label className="flex gap-2 text-xs font-semibold">
