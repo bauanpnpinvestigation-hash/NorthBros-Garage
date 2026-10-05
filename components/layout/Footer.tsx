@@ -5,9 +5,40 @@ import Link from 'next/link';
 import { useStore } from '@/components/shared/StoreProvider';
 import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 
+type FooterLink = { label: string; href: string };
+type FooterColumn = { title: string; links: FooterLink[] };
+
+const DEFAULT_FOOTER_COLUMNS: FooterColumn[] = [
+  { title: 'Catalog', links: [
+    { label: 'All Automotive Parts', href: '/parts' },
+    { label: 'Part Categories', href: '/categories' },
+    { label: 'Manufacturer Brands', href: '/brands' },
+    { label: 'Daily Workshop Vlog', href: '/vlogs' },
+  ]},
+  { title: 'Services & Orders', links: [
+    { label: 'Book Automotive Service', href: '/services' },
+    { label: 'Shopping Cart', href: '/cart' },
+    { label: 'Order & Service History', href: '/orders' },
+    { label: 'Saved Parts Wishlist', href: '/favorites' },
+    { label: 'Customer Account', href: '/account' },
+  ]},
+  { title: 'Information', links: [
+    { label: 'About', href: '/about' },
+    { label: 'Privacy Policy', href: '/privacy' },
+    { label: 'Terms & Warranty Policy', href: '/terms' },
+  ]},
+];
+
 export function Footer() {
   const { user } = useStore();
   const { getString, getValue } = useAppSettings();
+  const rawFooterColumns = getValue('footer.columns', DEFAULT_FOOTER_COLUMNS);
+  const footerColumns: FooterColumn[] = Array.isArray(rawFooterColumns)
+    ? rawFooterColumns.filter((column: any) => column && typeof column.title === 'string' && Array.isArray(column.links)).map((column: any) => ({
+        title: column.title,
+        links: column.links.filter((link: any) => link && typeof link.label === 'string' && typeof link.href === 'string'),
+      }))
+    : DEFAULT_FOOTER_COLUMNS;
   const siteName = getString('branding.site_name', 'NorthBros Garage');
   const tagline = getString(
     'footer.about',
@@ -39,97 +70,37 @@ export function Footer() {
             </p>
           </div>
 
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-white tracking-wide">
-              Car Parts Catalog
-            </h3>
-            <ul className="space-y-2.5 text-sm text-neutral-400">
-              <li>
-                <Link href="/parts" className="hover:text-white transition-colors">
-                  All Automotive Parts
-                </Link>
-              </li>
-              <li>
-                <Link href="/categories" className="hover:text-white transition-colors">
-                  Part Categories
-                </Link>
-              </li>
-              <li>
-                <Link href="/brands" className="hover:text-white transition-colors">
-                  Manufacturer Brands
-                </Link>
-              </li>
-              <li>
-                <Link href="/vlogs" className="hover:text-white transition-colors">
-                  Daily Workshop Vlog
-                </Link>
-              </li>
-            </ul>
-          </div>
+          {footerColumns.map((column) => (
+            <div key={column.title} className="space-y-3">
+              <h3 className="text-xs font-semibold text-white tracking-wide">
+                {column.title}
+              </h3>
+              <ul className="space-y-2.5 text-sm text-neutral-400">
+                {column.links.map((link) => (
+                  <li key={link.href + link.label}>
+                    <Link href={link.href} className="hover:text-white transition-colors">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
 
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-white tracking-wide">
-              Services & Orders
-            </h3>
-            <ul className="space-y-2.5 text-sm text-neutral-400">
-              <li>
-                <Link href="/services" className="hover:text-white transition-colors">
-                  Book Automotive Service
-                </Link>
-              </li>
-              <li>
-                <Link href="/cart" className="hover:text-white transition-colors">
-                  Shopping Cart
-                </Link>
-              </li>
-              <li>
-                <Link href="/orders" className="hover:text-white transition-colors">
-                  Order & Service History
-                </Link>
-              </li>
-              <li>
-                <Link href="/favorites" className="hover:text-white transition-colors">
-                  Saved Parts Wishlist
-                </Link>
-              </li>
-              <li>
-                <Link href="/account" className="hover:text-white transition-colors">
-                  Customer Account
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-white tracking-wide">
-              Store & Administration
-            </h3>
-            <ul className="space-y-2.5 text-sm text-neutral-400">
-              <li>
-                <Link href="/about" className="hover:text-white transition-colors">
-                  About Our Workshop
-                </Link>
-              </li>
-              {user?.role === 'admin' && (
+          {user?.role === 'admin' && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold text-white tracking-wide">
+                Administration
+              </h3>
+              <ul className="space-y-2.5 text-sm text-neutral-400">
                 <li>
                   <Link href="/admin" className="hover:text-white transition-colors">
                     Store Admin Console
                   </Link>
                 </li>
-              )}
-              <li>
-                <Link href="/privacy" className="hover:text-white transition-colors">
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms" className="hover:text-white transition-colors">
-                  Terms & Warranty Policy
-                </Link>
-              </li>
-            </ul>
-          </div>
-        </div>
+              </ul>
+            </div>
+          )}        </div>
 
         <div className="pt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-neutral-400">
           <p>
