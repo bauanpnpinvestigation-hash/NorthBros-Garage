@@ -9,6 +9,7 @@ type Props = {
 export default async function CheckoutSuccessPage({ searchParams }: Props) {
   const params = await searchParams;
   const client = await createServerSupabaseClient();
+  if (!client) redirect('/');
   const { data: { user } } = await client.auth.getUser();
   if (!user) redirect('/auth/login');
 
