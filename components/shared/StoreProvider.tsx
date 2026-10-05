@@ -51,7 +51,7 @@ const sb = () => createClient();
 
 function publicStorageUrl(bucket:string,path:string|null|undefined) {
   if (!path) return '/images/hero_parts_workshop.jpg';
-  if (/^https?:\\/\\//i.test(path) || path.startsWith('/')) return path;
+  if (/^https?:\/\//i.test(path) || path.startsWith('/')) return path;
   const client = sb();
   return client ? client.storage.from(bucket).getPublicUrl(path).data.publicUrl : path;
 }
