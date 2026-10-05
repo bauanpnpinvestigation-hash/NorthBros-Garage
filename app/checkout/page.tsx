@@ -210,8 +210,7 @@ export default function CheckoutPage() {
           Checkout & Payment
         </h1>
         <p className="text-sm text-[#6E6E68]">
-          Enter your shipping address and select your preferred Philippine
-          payment method.
+          Enter your shipping address and select an available payment method.
         </p>
       </div>
 
