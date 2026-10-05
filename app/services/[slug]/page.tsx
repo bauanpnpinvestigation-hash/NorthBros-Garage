@@ -30,11 +30,9 @@ export default function ServiceDetailPage({
   const [customerName, setCustomerName] = useState(user?.name || '');
   const [customerEmail, setCustomerEmail] = useState(user?.email || '');
   const [customerPhone, setCustomerPhone] = useState(user?.phone || '');
-  const [vehicleDetails, setVehicleDetails] = useState(
-    user?.garage_vehicle || '2021 Toyota Fortuner 2.8 LTD'
-  );
+  const [vehicleDetails, setVehicleDetails] = useState(user?.garage_vehicle || '');
   const [preferredDate, setPreferredDate] = useState(getManilaTomorrow);
-  const [preferredTime, setPreferredTime] = useState('09:00 AM');
+  const [preferredTime, setPreferredTime] = useState('09:00');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmedBooking, setConfirmedBooking] =
@@ -66,12 +64,12 @@ export default function ServiceDetailPage({
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     if (!user) { setErrors({ submit: 'Please sign in before booking a service.' }); return; }
     try {
-      const timeMatch = preferredTime.match(/^(\d{1,2}):(\d{2}) (AM|PM)$/);
-      let h = 9, m = 0;
-      if (timeMatch) { h = Number(timeMatch[1]); m = Number(timeMatch[2]); if (timeMatch[3] === 'PM' && h < 12) h += 12; if (timeMatch[3] === 'AM' && h === 12) h = 0; }
-      const scheduled = new Date(preferredDate + 'T' + String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':00+08:00');
-      const end = new Date(scheduled.getTime() + (service.duration_minutes || 60) * 60000);
-      const booking = await createServiceBooking({ service_id: service.id, scheduled_start: scheduled.toISOString(), scheduled_end: end.toISOString(), notes: [vehicleDetails.trim(), notes.trim()].filter(Boolean).join(' — ') });
+      const scheduled = new Date(preferredDate + 'T' + preferredTime + ':00+08:00');
+      if (Number.isNaN(scheduled.getTime())) {
+        setErrors({ submit: 'Choose a valid appointment date and time.' });
+        return;
+      }
+      const booking = await createServiceBooking({ service_id: service.id, scheduled_start: scheduled.toISOString(), notes: [vehicleDetails.trim(), notes.trim()].filter(Boolean).join(' — ') });
       setErrors({});
       setConfirmedBooking({ ...booking, service_id: service.id, created_at: new Date().toISOString(), booking_reference: booking.appointment_number, service_slug: service.slug, service_name: service.name, service_price: service.price, user_id: user.id, customer_name: customerName.trim(), customer_email: customerEmail.trim(), customer_phone: customerPhone.trim(), vehicle_details: vehicleDetails.trim(), preferred_date: preferredDate, preferred_time: preferredTime, notes: notes.trim() || undefined } as ServiceBooking);
     } catch (error) { setErrors({ submit: error instanceof Error ? error.message : 'Unable to book this service.' }); }
@@ -271,18 +269,15 @@ export default function ServiceDetailPage({
                 >
                   Time Slot
                 </label>
-                <select
+                <input
                   id="sb-time"
+                  type="time"
+                  required
                   value={preferredTime}
                   onChange={(e) => setPreferredTime(e.target.value)}
                   className="w-full px-3 py-2 text-xs bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg font-mono tabular-nums"
                 >
-                  <option value="08:00 AM">08:00 AM (Morning Bay 1)</option>
-                  <option value="09:00 AM">09:00 AM (Morning Bay 2)</option>
-                  <option value="11:00 AM">11:00 AM (Midday Bay)</option>
-                  <option value="01:30 PM">01:30 PM (Afternoon Bay 1)</option>
-                  <option value="03:30 PM">03:30 PM (Afternoon Bay 2)</option>
-                </select>
+                />
               </div>
             </div>
 
@@ -298,7 +293,7 @@ export default function ServiceDetailPage({
                 type="text"
                 value={vehicleDetails}
                 onChange={(e) => setVehicleDetails(e.target.value)}
-                placeholder="e.g. 2021 Toyota Fortuner 2.8 LTD"
+                placeholder="e.g. Make, model, year, engine or customer vehicle"
                 className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
               />
               {errors.vehicle && (
