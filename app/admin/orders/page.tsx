@@ -14,7 +14,7 @@ export default function AdminOrdersPage() {
   return (
     <AdminShell
       title="Customer Orders & Dispatch"
-      subtitle="Track customer car part orders, payment verification (GCash, Maya, QR Ph, COD), and courier dispatch."
+      subtitle="Track customer part orders, payment status, fulfillment, and dispatch."
     >
       <div className="space-y-4">
         {orders.length === 0 ? (
@@ -79,9 +79,11 @@ export default function AdminOrdersPage() {
                       }
                       className="px-2.5 py-1 text-xs font-semibold bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
                     >
-                      <option value="Paid">Paid</option>
                       <option value="Pending Verification">Pending Verification</option>
-                      <option value="COD Pending">COD Pending</option>
+                      <option value="Paid">Paid</option>
+                      <option value="Failed">Failed</option>
+                      <option value="Refunded">Refunded</option>
+                      <option value="Partially Refunded">Partially Refunded</option>
                     </select>
                   </div>
                 </div>
