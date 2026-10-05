@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/components/shared/StoreProvider';
 import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { formatDate, formatCurrency } from '@/lib/utils/format';
+import { isStaffRole } from '@/lib/auth/role';
 
 export default function AccountDashboardPage() {
   const router = useRouter();
@@ -74,12 +75,12 @@ export default function AccountDashboardPage() {
           >
             Edit Profile
           </Link>
-          {user.role === 'admin' && (
+          {isStaffRole(user.role) && (
             <Link
               href="/admin"
               className="px-4 py-2 bg-[#141413] text-white text-xs font-semibold rounded-lg hover:bg-neutral-800"
             >
-              Store Admin Console
+              Store Staff Console
             </Link>
           )}
           <button
