@@ -51,6 +51,7 @@ interface StoreContextType {
   favorites: string[];
   cart: CartItem[];
   orders: Order[];
+  customerVehicles: import('@/types/database').CustomerVehicle[];
   user: UserProfile | null;
   isHydrated: boolean;
   refreshAuth: () => Promise<void>;
@@ -70,6 +71,7 @@ interface StoreContextType {
     postal_code?: string;
     payment_method_code: string;
     customer_notes?: string;
+    promotion_code?: string;
     idempotency_key: string;
     items: Array<{ product_id: string; quantity: number }>;
   }) => Promise<{
@@ -78,6 +80,7 @@ interface StoreContextType {
     subtotal: number;
     shipping_fee: number;
     total_amount: number;
+    discount_amount?: number;
   }>;
   createServiceBooking: (payload: {
     service_id: string;
@@ -456,6 +459,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [customerVehicles, setCustomerVehicles] = useState<import('@/types/database').CustomerVehicle[]>([]);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -684,9 +688,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       );
   };
 
+  const loadCustomerVehicles = async (id: string) => {
+    const c = sb();
+    if (!c) return;
+    const { data, error } = await c
+      .from('customer_vehicles')
+      .select('id,customer_id,vehicle_variant_id,nickname,plate_number,vin,current_mileage,notes,created_at,updated_at,vehicle_variants(name,year_from,year_to,engine,transmission,fuel_type,body_type,drive_type,vehicle_models(name,vehicle_makes(name)))')
+      .eq('customer_id', id)
+      .order('created_at', { ascending: false });
+    if (error) {
+      showToast(error.message, 'error');
+      return;
+    }
+    setCustomerVehicles((data || []).map((row: any) => ({
+      id: row.id,
+      customer_id: row.customer_id,
+      vehicle_variant_id: row.vehicle_variant_id,
+      nickname: row.nickname || undefined,
+      plate_number: row.plate_number || undefined,
+      vin: row.vin || undefined,
+      current_mileage: row.current_mileage == null ? undefined : Number(row.current_mileage),
+      notes: row.notes || undefined,
+      make_name: row.vehicle_variants?.vehicle_models?.vehicle_makes?.name || '',
+      model_name: row.vehicle_variants?.vehicle_models?.name || '',
+      variant_name: row.vehicle_variants?.name || '',
+      year_from: row.vehicle_variants?.year_from || undefined,
+      year_to: row.vehicle_variants?.year_to || undefined,
+      engine: row.vehicle_variants?.engine || undefined,
+      transmission: row.vehicle_variants?.transmission || undefined,
+      fuel_type: row.vehicle_variants?.fuel_type || undefined,
+      body_type: row.vehicle_variants?.body_type || undefined,
+      drive_type: row.vehicle_variants?.drive_type || undefined,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    })));
+  };
+
   const loadCustomerData = async (id: string) => {
     const c = sb();
     if (!c) return;
+    await loadCustomerVehicles(id);
     const [fav, ci, ord, ap] = await Promise.all([
       c.from('favorites').select('product_id').eq('customer_id', id),
       c
@@ -963,6 +1004,50 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const r = await c.from('cart_items').delete().eq('cart_id', id);
     if (r.error) showToast(r.error.message, 'error');
     else setCart([]);
+  };
+
+  const addCustomerVehicle = async (input: { vehicle_variant_id: string; nickname?: string; plate_number?: string; vin?: string; current_mileage?: number; notes?: string }) => {
+    if (!user) throw new Error('Please sign in to manage vehicles.');
+    const c = sb();
+    if (!c) throw new Error('Supabase is not configured.');
+    const { error } = await c.from('customer_vehicles').insert({
+      customer_id: user.id,
+      vehicle_variant_id: input.vehicle_variant_id,
+      nickname: input.nickname?.trim() || null,
+      plate_number: input.plate_number?.trim() || null,
+      vin: input.vin?.trim() || null,
+      current_mileage: input.current_mileage == null ? null : input.current_mileage,
+      notes: input.notes?.trim() || null,
+    });
+    if (error) throw error;
+    await loadCustomerVehicles(user.id);
+    showToast('Vehicle added.');
+  };
+
+  const updateCustomerVehicle = async (id: string, input: Partial<{ nickname: string; plate_number: string; vin: string; current_mileage: number | null; notes: string }>) => {
+    if (!user) throw new Error('Please sign in to manage vehicles.');
+    const c = sb();
+    if (!c) throw new Error('Supabase is not configured.');
+    const { error } = await c.from('customer_vehicles').update({
+      nickname: input.nickname?.trim() || null,
+      plate_number: input.plate_number?.trim() || null,
+      vin: input.vin?.trim() || null,
+      current_mileage: input.current_mileage == null ? null : input.current_mileage,
+      notes: input.notes?.trim() || null,
+    }).eq('id', id).eq('customer_id', user.id);
+    if (error) throw error;
+    await loadCustomerVehicles(user.id);
+    showToast('Vehicle updated.');
+  };
+
+  const deleteCustomerVehicle = async (id: string) => {
+    if (!user) throw new Error('Please sign in to manage vehicles.');
+    const c = sb();
+    if (!c) throw new Error('Supabase is not configured.');
+    const { error } = await c.from('customer_vehicles').delete().eq('id', id).eq('customer_id', user.id);
+    if (error) throw error;
+    await loadCustomerVehicles(user.id);
+    showToast('Vehicle removed.');
   };
 
   const createOrder = async (payload: any) => {
@@ -1845,6 +1930,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       favorites,
       cart,
       orders,
+      customerVehicles,
       user,
       isHydrated,
       refreshAuth,
@@ -1856,6 +1942,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       clearCart,
       createOrder,
       createServiceBooking,
+      addCustomerVehicle,
+      updateCustomerVehicle,
+      deleteCustomerVehicle,
       login,
       register,
       logout,
@@ -1891,6 +1980,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       favorites,
       cart,
       orders,
+      customerVehicles,
       user,
       isHydrated,
       refreshAuth,
