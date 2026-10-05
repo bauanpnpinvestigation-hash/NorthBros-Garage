@@ -56,38 +56,15 @@ export default function ServiceDetailPage({
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     if (!user) { setErrors({ submit: 'Please sign in before booking a service.' }); return; }
     try {
-      const start = new Date(\`${preferredDate}T${preferredTime.replace(/ AM| PM/,"")}\`);
       const timeMatch = preferredTime.match(/^(\\d{1,2}):(\\d{2}) (AM|PM)$/);
-      let scheduled = new Date(\`${preferredDate}T00:00:00\`);
-      if (timeMatch) {
-        let h=Number(timeMatch[1]); const m=Number(timeMatch[2]); if(timeMatch[3]==='PM'&&h<12)h+=12;if(timeMatch[3]==='AM'&&h===12)h=0;
-        scheduled=new Date(\`${preferredDate}T\${String(h).padStart(2,'0')}:\${String(m).padStart(2,'0')}:00+08:00\`);
-      }
+      let h = 9, m = 0;
+      if (timeMatch) { h = Number(timeMatch[1]); m = Number(timeMatch[2]); if (timeMatch[3] === 'PM' && h < 12) h += 12; if (timeMatch[3] === 'AM' && h === 12) h = 0; }
+      const scheduled = new Date(preferredDate + 'T' + String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':00+08:00');
       const end = new Date(scheduled.getTime() + (service.duration_minutes || 60) * 60000);
-      const booking = await createServiceBooking({
-        service_id: service.id,
-        scheduled_start: scheduled.toISOString(),
-        scheduled_end: end.toISOString(),
-        notes: [vehicleDetails.trim(), notes.trim()].filter(Boolean).join(' — '),
-      });
+      const booking = await createServiceBooking({ service_id: service.id, scheduled_start: scheduled.toISOString(), scheduled_end: end.toISOString(), notes: [vehicleDetails.trim(), notes.trim()].filter(Boolean).join(' — ') });
       setErrors({});
-      setConfirmedBooking({
-        ...booking,
-        service_slug: service.slug,
-        service_name: service.name,
-        service_price: service.price,
-        user_id: user.id,
-        customer_name: customerName.trim(),
-        customer_email: customerEmail.trim(),
-        customer_phone: customerPhone.trim(),
-        vehicle_details: vehicleDetails.trim(),
-        preferred_date: preferredDate,
-        preferred_time: preferredTime,
-        notes: notes.trim() || undefined,
-      } as ServiceBooking);
-    } catch (error) {
-      setErrors({ submit: error instanceof Error ? error.message : 'Unable to book this service.' });
-    }
+      setConfirmedBooking({ ...booking, service_slug: service.slug, service_name: service.name, service_price: service.price, user_id: user.id, customer_name: customerName.trim(), customer_email: customerEmail.trim(), customer_phone: customerPhone.trim(), vehicle_details: vehicleDetails.trim(), preferred_date: preferredDate, preferred_time: preferredTime, notes: notes.trim() || undefined } as ServiceBooking);
+    } catch (error) { setErrors({ submit: error instanceof Error ? error.message : 'Unable to book this service.' }); }
   };
 
   if (confirmedBooking) {
