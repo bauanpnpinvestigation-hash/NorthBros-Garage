@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/components/shared/StoreProvider';
 import { PartProduct } from '@/types/database';
-import { formatPHP } from '@/lib/utils/format';
+import { formatCurrency } from '@/lib/utils/format';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import {
   Heart,
   ShoppingCart,
@@ -22,7 +23,8 @@ interface PartDetailClientProps {
   initialPart: PartProduct | null;
 }
 
-export function PartDetailClient({ slug, initialPart }: PartDetailClientProps) {
+export function PartDetailClient({
+  const { getCurrency } = useAppSettings(); slug, initialPart }: PartDetailClientProps) {
   const router = useRouter();
   const { parts, vlogs, favorites, toggleFavorite, addToCart, user } = useStore();
   const part = parts.find((p) => p.slug === slug) || initialPart;
@@ -275,11 +277,11 @@ export function PartDetailClient({ slug, initialPart }: PartDetailClientProps) {
               <p className="text-xs text-[#6E6E68]">Unit Price (VAT Inclusive)</p>
               <div className="flex items-baseline gap-3">
                 <p className="text-2xl sm:text-3xl font-bold text-[#141413] font-mono tabular-nums">
-                  {formatPHP(part.price)}
+                  {formatCurrency(part.price, getCurrency())}
                 </p>
                 {part.compare_at_price && part.compare_at_price > part.price && (
                   <p className="text-sm text-[#6E6E68] line-through font-mono tabular-nums">
-                    {formatPHP(part.compare_at_price)}
+                    {formatCurrency(part.compare_at_price, getCurrency())}
                   </p>
                 )}
               </div>
@@ -320,7 +322,7 @@ export function PartDetailClient({ slug, initialPart }: PartDetailClientProps) {
                   </button>
                 </div>
                 <span className="text-xs text-[#6E6E68] font-mono tabular-nums">
-                  Subtotal: {formatPHP(part.price * quantity)}
+                  Subtotal: {formatCurrency(part.price * quantity, getCurrency())}
                 </span>
               </div>
             </div>
