@@ -3,7 +3,9 @@
 import React, { use } from 'react';
 import Link from 'next/link';
 import { useStore } from '@/components/shared/StoreProvider';
-import { formatDate, formatPHP } from '@/lib/utils/format';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
+import { formatDate, formatCurrency } from '@/lib/utils/format';
 
 export default function OrderDetailPage({
   params,
@@ -12,6 +14,7 @@ export default function OrderDetailPage({
 }) {
   const { id } = use(params);
   const { orders } = useStore();
+  const { getCurrency } = useAppSettings();
   const order = orders.find((o) => o.id === id || o.order_number === id);
 
   if (!order) {
@@ -86,11 +89,11 @@ export default function OrderDetailPage({
                 <p className="font-semibold text-[#141413]">{item.name}</p>
                 <p className="text-[#6E6E68] font-mono tabular-nums">
                   SKU: {item.sku} · Qty: {item.quantity} ×{' '}
-                  {formatPHP(item.unit_price)}
+                  {formatCurrency(item.unit_price, getCurrency())}
                 </p>
               </div>
               <span className="font-mono font-bold text-[#141413] tabular-nums">
-                {formatPHP(item.subtotal)}
+                {formatCurrency(item.subtotal, getCurrency())}
               </span>
             </div>
           ))}
@@ -100,7 +103,7 @@ export default function OrderDetailPage({
           <div className="flex justify-between">
             <span className="text-[#6E6E68]">Subtotal</span>
             <span className="font-mono tabular-nums">
-              {formatPHP(order.subtotal)}
+              {formatCurrency(order.subtotal, getCurrency())}
             </span>
           </div>
           <div className="flex justify-between">
@@ -108,13 +111,13 @@ export default function OrderDetailPage({
             <span className="font-mono tabular-nums">
               {order.shipping_fee === 0
                 ? 'FREE'
-                : formatPHP(order.shipping_fee)}
+                : formatCurrency(order.shipping_fee, getCurrency())}
             </span>
           </div>
           <div className="pt-2 border-t border-[#E5E5E0] flex justify-between text-base font-bold text-[#141413]">
             <span>Total</span>
             <span className="font-mono tabular-nums">
-              {formatPHP(order.total_amount)}
+              {formatCurrency(order.total_amount, getCurrency())}
             </span>
           </div>
         </div>
