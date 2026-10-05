@@ -155,6 +155,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       loading,
       getValue,
       getString,
+      getCurrency,
       refreshSettings,
       createSetting,
       updateSetting,
