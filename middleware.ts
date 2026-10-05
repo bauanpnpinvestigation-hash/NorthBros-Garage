@@ -32,10 +32,9 @@ export async function middleware(request: NextRequest) {
           response.cookies.set(name, value, {
             ...options,
             path: options?.path || '/',
-            sameSite: 'none',
-            secure: true,
-            partitioned: true,
-            httpOnly: false,
+            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            httpOnly: true,
           } as any);
         }
       },
