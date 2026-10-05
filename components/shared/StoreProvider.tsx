@@ -173,6 +173,8 @@ function mapProduct(row: any): PartProduct {
       n + Math.max(0, (x.quantity ?? 0) - (x.reserved_quantity ?? 0)),
     0
   );
+  const reviews = Array.isArray(row.product_reviews) ? row.product_reviews : [];
+  const averageRating = reviews.length > 0 ? reviews.reduce((sum: number, review: any) => sum + Number(review.rating || 0), 0) / reviews.length : 0;
   const statusMap: any = {
     in_stock: 'Active',
     low_stock: 'Active',
@@ -227,8 +229,8 @@ function mapProduct(row: any): PartProduct {
       row.compare_at_price == null ? undefined : Number(row.compare_at_price),
     stock,
     status: statusMap[row.stock_status] || 'Active',
-    rating: 4.9,
-    review_count: 0,
+    rating: Number(averageRating.toFixed(1)),
+    review_count: reviews.length,
     is_featured: !!row.is_featured,
     primary_image: resolvedPrimary,
     gallery_images: resolvedGallery,
@@ -328,7 +330,7 @@ function mapOrder(row: any): Order {
     shipping_address: addr.address_line || '',
     shipping_city: [addr.city, addr.province].filter(Boolean).join(', '),
     shipping_postal_code: addr.postal_code || '',
-    payment_method: pm[payment?.method] || payment?.method || '',
+    payment_method: payment?.payment_methods?.name || pm[payment?.method] || payment?.method || '',
     payment_status: ps[payment?.status] || 'Pending Verification',
     fulfillment_status: fs[row.status] || 'Processing',
     items,
@@ -523,7 +525,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       c
         .from('products')
         .select(
-          '*,brands(name,slug),categories(name,slug),product_images(storage_path,alt_text,sort_order,is_primary),inventory(quantity,reserved_quantity),product_vehicle_compatibility(*,vehicle_variants(*,vehicle_models(*,vehicle_makes(*))))'
+          '*,brands(name,slug),categories(name,slug),product_images(storage_path,alt_text,sort_order,is_primary),inventory(quantity,reserved_quantity),product_vehicle_compatibility(*,vehicle_variants(*,vehicle_models(*,vehicle_makes(*)))),product_reviews(rating)'
         )
         .eq('is_active', true),
       c.from('brands').select('*').eq('is_active', true).order('name'),
@@ -584,7 +586,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       c
         .from('orders')
         .select(
-          '*,profiles(full_name,email,phone),addresses(*),order_items(*,products(slug,brands(name),product_images(storage_path,is_primary))),payments(*)'
+          '*,profiles(full_name,email,phone),addresses(*),order_items(*,products(slug,brands(name),product_images(storage_path,is_primary))),payments(*,payment_methods(name))'
         )
         .order('created_at', { ascending: false }),
       c
