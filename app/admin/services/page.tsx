@@ -1,17 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useStore } from '@/components/shared/StoreProvider';
 import { AdminShell } from '@/components/admin/AdminShell';
 import { MediaUploadInput } from '@/components/shared/MediaUploadInput';
 import { formatPHP, slugify } from '@/lib/utils/format';
 import { AutomotiveService } from '@/types/database';
+import { createClient } from '@/lib/supabase/client';
 
 export default function AdminServicesPage() {
   const { services, addService, updateService, deleteService } = useStore();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
-  const [category, setCategory] = useState<AutomotiveService['category']>('Periodic Maintenance');
+  const [category, setCategory] = useState<AutomotiveService['category']>('');
+  const [serviceCategories, setServiceCategories] = useState<Array<{id:string;name:string;slug:string;is_active:boolean}>>([]);
   const [price, setPrice] = useState('3500');
   const [durationMinutes, setDurationMinutes] = useState('90');
   const [description, setDescription] = useState('');
@@ -19,10 +21,21 @@ export default function AdminServicesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    const c = createClient();
+    if (!c) return;
+    void c.from('service_categories').select('id,name,slug,is_active').order('sort_order').order('name').then(({ data, error }) => {
+      if (error) setError(error.message);
+      const active = (data || []).filter((x: any) => x.is_active);
+      setServiceCategories(active);
+      if (!category && active[0]) setCategory(active[0].name);
+    });
+  }, []);
+
   const reset = () => {
     setName('');
     setSlug('');
-    setCategory('Periodic Maintenance');
+    setCategory(serviceCategories[0]?.name || '');
     setPrice('3500');
     setDurationMinutes('90');
     setDescription('');
@@ -139,15 +152,13 @@ export default function AdminServicesPage() {
           <div>
             <label className="block text-xs font-semibold mb-1">Category</label>
             <select
+              required
               value={category}
-              onChange={(e) => setCategory(e.target.value as AutomotiveService['category'])}
+              onChange={(e) => setCategory(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
             >
-              <option value="Periodic Maintenance">Periodic Maintenance</option>
-              <option value="Brakes & Chassis">Brakes & Chassis</option>
-              <option value="Diagnostics & A/C">Diagnostics & A/C</option>
-              <option value="Tires & Alignment">Tires & Alignment</option>
-              <option value="Electrical & Battery">Electrical & Battery</option>
+              <option value="">Choose service category</option>
+              {serviceCategories.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}
             </select>
           </div>
 
