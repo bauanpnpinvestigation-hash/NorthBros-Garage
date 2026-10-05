@@ -86,7 +86,7 @@ export function HomeCatalogSections() {
               {siteName ? siteName + ' · ' : ''}Online Appointment Booking
             </p>
             <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#141413] tracking-tight">
-              {homeDescription}
+              Professional Automotive Services
             </h2>
           </div>
           <Link
