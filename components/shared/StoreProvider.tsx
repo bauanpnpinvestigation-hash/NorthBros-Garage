@@ -361,15 +361,10 @@ function mapOrder(row: any): Order {
       }))
     : [];
   const payment = Array.isArray(row.payments) ? row.payments[0] : row.payments;
-  const pm: any = {
-    gcash: 'GCash',
-    maya: 'Maya',
-    gotyme: 'GoTyme / QR Ph',
-    cod: 'Cash on Delivery (COD)',
-    cash: 'Cash',
-    bank_transfer: 'Bank Transfer',
-    card: 'Card',
-  };
+  const paymentMethodName =
+    payment?.payment_methods?.name ||
+    payment?.method ||
+    'Payment method';
   const fs: any = {
     pending: 'Processing',
     confirmed: 'Processing',
@@ -397,7 +392,7 @@ function mapOrder(row: any): Order {
     shipping_address: addr.address_line || '',
     shipping_city: [addr.city, addr.province].filter(Boolean).join(', '),
     shipping_postal_code: addr.postal_code || '',
-    payment_method: payment?.payment_methods?.name || pm[payment?.method] || payment?.method || '',
+    payment_method: paymentMethodName,
     payment_status: ps[payment?.status] || 'Pending Verification',
     fulfillment_status: fs[row.status] || 'Processing',
     items,
@@ -526,7 +521,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const { data, error } = await c
       .from('daily_posts')
       .select(
-        '*,daily_post_media(storage_path,thumbnail_path,media_type,sort_order),daily_post_likes(id),daily_post_comments(id,content,created_at,profiles(full_name))'
+        '*,profiles(full_name),daily_post_media(storage_path,thumbnail_path,media_type,sort_order),daily_post_likes(id),daily_post_comments(id,content,created_at,profiles(full_name))'
       )
       .eq('is_published', true)
       .order('published_at', { ascending: false });
