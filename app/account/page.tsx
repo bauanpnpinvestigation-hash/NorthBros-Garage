@@ -8,7 +8,15 @@ import { formatDate, formatPHP } from '@/lib/utils/format';
 
 export default function AccountDashboardPage() {
   const router = useRouter();
-  const { user, favorites, orders, serviceBookings, logout } = useStore();
+  const { user, favorites, orders, serviceBookings, logout, isHydrated, refreshAuth } = useStore();
+
+  React.useEffect(() => {
+    if (isHydrated && !user) void refreshAuth();
+  }, [isHydrated, user, refreshAuth]);
+
+  if (!isHydrated) {
+    return <div className="max-w-xl mx-auto px-4 sm:px-8 py-20 text-center text-sm text-[#6E6E68]">Loading account…</div>;
+  }
 
   if (!user) {
     return (
