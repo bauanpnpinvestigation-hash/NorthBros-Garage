@@ -184,6 +184,29 @@ export interface VlogPost {
   comments: VlogComment[];
 }
 
+export interface CustomerVehicle {
+  id: string;
+  customer_id: string;
+  vehicle_variant_id: string;
+  nickname?: string;
+  plate_number?: string;
+  vin?: string;
+  current_mileage?: number;
+  notes?: string;
+  make_name: string;
+  model_name: string;
+  variant_name: string;
+  year_from?: number;
+  year_to?: number;
+  engine?: string;
+  transmission?: string;
+  fuel_type?: string;
+  body_type?: string;
+  drive_type?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
