@@ -257,7 +257,7 @@ export function PartsCatalogView({
           htmlFor="filter-part-price"
           className="block text-xs font-semibold text-[#141413]"
         >
-          Maximum Price (PHP)
+          Maximum Price
         </label>
         <select
           id="filter-part-price"
