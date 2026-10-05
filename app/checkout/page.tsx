@@ -82,7 +82,7 @@ export default function CheckoutPage() {
 
           <div className="space-y-2">
             <h1 className="font-display text-3xl font-bold text-[#141413]">
-              Order Confirmed
+              Order Created
             </h1>
             <p className="text-sm text-[#6E6E68]">
               Thank you for your order. Your payment is still pending verification, and our parts warehouse will prepare the shipment after payment is confirmed.
