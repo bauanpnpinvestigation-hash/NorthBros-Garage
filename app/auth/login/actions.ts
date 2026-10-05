@@ -49,19 +49,15 @@ export async function loginAction(formData: FormData) {
     );
   }
 
-  let profile = null;
-  if (data.user.app_metadata?.role !== 'admin') {
-    const { data: profileRow } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', data.user.id)
-      .maybeSingle();
-    profile = profileRow;
-  }
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', data.user.id)
+    .maybeSingle();
 
   const role = resolveUserRole(data.user, profile);
 
-  if (role === 'admin') {
+  if (role === 'admin' || role === 'manager' || role === 'staff' || role === 'mechanic') {
     redirect('/admin');
   }
 
