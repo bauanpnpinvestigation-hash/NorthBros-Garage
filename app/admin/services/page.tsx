@@ -15,7 +15,10 @@ export default function AdminServicesPage() {
   const [category, setCategory] = useState<AutomotiveService['category']>('');
   const [serviceCategories, setServiceCategories] = useState<Array<{id:string;name:string;slug:string;is_active:boolean}>>([]);
   const [price, setPrice] = useState('');
+  const [priceType, setPriceType] = useState<'fixed'|'starting_at'|'quote'>('fixed');
   const [durationMinutes, setDurationMinutes] = useState('');
+  const [isBookable, setIsBookable] = useState(true);
+  const [requiresInspection, setRequiresInspection] = useState(false);
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -37,7 +40,10 @@ export default function AdminServicesPage() {
     setSlug('');
     setCategory(serviceCategories[0]?.name || '');
     setPrice('');
+    setPriceType('fixed');
     setDurationMinutes('');
+    setIsBookable(true);
+    setRequiresInspection(false);
     setDescription('');
     setImageUrl('');
     setEditingId(null);
@@ -50,7 +56,10 @@ export default function AdminServicesPage() {
     setSlug(service.slug);
     setCategory(service.category);
     setPrice(String(service.price));
+    setPriceType(service.price_type || 'fixed');
     setDurationMinutes(service.duration_minutes ? String(service.duration_minutes) : '');
+    setIsBookable(service.is_bookable !== false);
+    setRequiresInspection(service.requires_inspection === true);
     setDescription(service.description || '');
     setImageUrl(service.image_url || '');
     setError('');
@@ -73,7 +82,10 @@ export default function AdminServicesPage() {
       name: cleanName,
       category,
       price: Number(price) || 0,
+      price_type: priceType,
       duration_minutes: Number(durationMinutes) || 0,
+      is_bookable: isBookable,
+      requires_inspection: requiresInspection,
       duration_label: durationMinutes.trim() ? String(Number(durationMinutes)) + ' mins' : 'By inspection',
       availability: 'Available' as const,
       description: description.trim(),
@@ -164,6 +176,14 @@ export default function AdminServicesPage() {
             </select>
           </div>
 
+          <div>
+            <label className="block text-xs font-semibold mb-1">Price Type</label>
+            <select value={priceType} onChange={(e) => setPriceType(e.target.value as typeof priceType)} className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg">
+              <option value="fixed">Fixed</option>
+              <option value="starting_at">Starting at</option>
+              <option value="quote">Request a quote</option>
+            </select>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold mb-1">Price (PHP)</label>
@@ -187,6 +207,10 @@ export default function AdminServicesPage() {
             </div>
           </div>
 
+          <div className="flex flex-wrap gap-5 text-xs font-semibold">
+            <label className="flex items-center gap-2"><input type="checkbox" checked={isBookable} onChange={(e) => setIsBookable(e.target.checked)} /> Customer can book online</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={requiresInspection} onChange={(e) => setRequiresInspection(e.target.checked)} /> Requires inspection</label>
+          </div>
           <div>
             <label className="block text-xs font-semibold mb-1">Description</label>
             <textarea
