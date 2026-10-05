@@ -7,12 +7,12 @@ import { useStore } from '@/components/shared/StoreProvider';
 import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { PartCard } from '@/components/parts/PartCard';
 import { ServiceCard } from '@/components/services/ServiceCard';
-import { formatDate, formatNumber, formatPHP } from '@/lib/utils/format';
+import { formatDate, formatNumber, formatCurrency } from '@/lib/utils/format';
 import { Play, ArrowRight } from 'lucide-react';
 
 export function HomeCatalogSections() {
   const { parts, categories, services, vlogs } = useStore();
-  const { getString } = useAppSettings();
+  const { getString, getCurrency } = useAppSettings();
   const homeEyebrow = getString('homepage.eyebrow', 'Automotive Parts & Services');
   const homeTitle = getString('homepage.title', 'Parts, service, and workshop care in one place.');
   const homeDescription = getString('homepage.description', 'Browse the catalog, choose a service, and manage your vehicle needs from one storefront.');
@@ -176,7 +176,7 @@ export function HomeCatalogSections() {
                       </span>{' '}
                       {featuredVlog.featured_part_price && (
                         <span className="font-mono tabular-nums text-[#141413]">
-                          ({formatPHP(featuredVlog.featured_part_price)})
+                          ({formatCurrency(featuredVlog.featured_part_price, getCurrency())})
                         </span>
                       )}
                     </div>
