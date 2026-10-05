@@ -60,7 +60,7 @@ export function PartForm({ initialPart }: PartFormProps) {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
     const parsedPrice = Number(price);
@@ -116,12 +116,13 @@ export function PartForm({ initialPart }: PartFormProps) {
       ],
     };
 
-    if (initialPart) {
-      updatePart(initialPart.id, payload);
-    } else {
-      addPart(payload);
+    try {
+      if (initialPart) await updatePart(initialPart.id, payload);
+      else await addPart(payload);
+      router.push('/admin/parts');
+    } catch (error) {
+      setErrors({ submit: error instanceof Error ? error.message : 'Unable to save this part.' });
     }
-    router.push('/admin/parts');
   };
 
   return (
@@ -402,6 +403,8 @@ export function PartForm({ initialPart }: PartFormProps) {
           </div>
         </div>
       </section>
+
+      {errors.submit && <p className="text-xs text-red-700">{errors.submit}</p>}
 
       <div className="flex items-center justify-end gap-3">
         <button
