@@ -15,7 +15,7 @@ export type OrderFulfillmentStatus = 'Processing' | 'Packed' | 'Shipped' | 'Deli
 export type PaymentStatus = 'Pending Verification' | 'Paid' | 'Failed' | 'Refunded' | 'Partially Refunded' | 'COD Pending';
 export type PaymentMethodType = string;
 export type ServiceAvailability = 'Available' | 'Limited Slots' | 'Unavailable';
-export type ServiceBookingStatus = 'Pending' | 'Confirmed' | 'In Service Bay' | 'Completed' | 'Cancelled';
+export type ServiceBookingStatus = 'Pending' | 'Confirmed' | 'Checked In' | 'In Service Bay' | 'Completed' | 'Cancelled' | 'No Show';
 
 export interface VehicleCompatibility {
   make: string;
