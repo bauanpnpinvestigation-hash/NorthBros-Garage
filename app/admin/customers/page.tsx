@@ -1,100 +1,17 @@
 'use client';
 
-import React from 'react';
-import { useStore } from '@/components/shared/StoreProvider';
-import { AdminShell } from '@/components/admin/AdminShell';
-import { formatPHP } from '@/lib/utils/format';
+import React,{useEffect,useMemo,useState} from 'react';
+import {AdminShell} from '@/components/admin/AdminShell';
+import {createClient} from '@/lib/supabase/client';
+import {formatPHP} from '@/lib/utils/format';
 
-export default function AdminCustomersPage() {
-  const { orders, serviceBookings } = useStore();
+type Profile={id:string;full_name:string|null;email:string|null;phone:string|null;role:string;is_active:boolean;created_at:string};
+type Activity={id:string;customer_id:string;total_amount:number};
 
-  const customerMap = new Map<
-    string,
-    {
-      id: string;
-      name: string;
-      email: string;
-      phone: string;
-      orderCount: number;
-      bookingCount: number;
-      totalSpent: number;
-    }
-  >();
-
-  for (const ord of orders) {
-    const key = ord.user_id || ord.customer_name || ord.id;
-    const existing = customerMap.get(key) || {
-      id: key,
-      name: ord.customer_name || 'Customer',
-      email: ord.customer_email || '',
-      phone: ord.customer_phone || '',
-      orderCount: 0,
-      bookingCount: 0,
-      totalSpent: 0,
-    };
-    existing.orderCount += 1;
-    existing.totalSpent += ord.total_amount;
-    customerMap.set(key, existing);
-  }
-
-  for (const sb of serviceBookings) {
-    const key = sb.user_id || sb.customer_name || sb.id;
-    const existing = customerMap.get(key) || {
-      id: key,
-      name: sb.customer_name || 'Customer',
-      email: sb.customer_email || '',
-      phone: sb.customer_phone || '',
-      orderCount: 0,
-      bookingCount: 0,
-      totalSpent: 0,
-    };
-    existing.bookingCount += 1;
-    customerMap.set(key, existing);
-  }
-
-  const customers = Array.from(customerMap.values());
-
-  return (
-    <AdminShell
-      title="Customers"
-      subtitle="View customer accounts, order activity, and workshop service history."
-    >
-      <div className="bg-white border border-[#E5E5E0] rounded-xl p-6">
-        {customers.length === 0 ? (
-          <p className="text-sm text-[#6E6E68] text-center py-8">
-            No customer records found yet.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-[#E5E5E0] text-[#6E6E68]">
-                  <th className="py-3 px-2 font-semibold">Customer</th>
-                  <th className="py-3 px-2 font-semibold">Contact</th>
-                  <th className="py-3 px-2 font-semibold">Part Orders</th>
-                  <th className="py-3 px-2 font-semibold">Service Bookings</th>
-                  <th className="py-3 px-2 font-semibold text-right">Total Spend</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E5E5E0]">
-                {customers.map((c) => (
-                  <tr key={c.id} className="hover:bg-[#FAF9F6]/60">
-                    <td className="py-3 px-2 font-semibold text-[#141413]">{c.name}</td>
-                    <td className="py-3 px-2 text-[#52524E]">
-                      {[c.email, c.phone].filter(Boolean).join(' · ') || '—'}
-                    </td>
-                    <td className="py-3 px-2 font-mono tabular-nums">{c.orderCount}</td>
-                    <td className="py-3 px-2 font-mono tabular-nums">{c.bookingCount}</td>
-                    <td className="py-3 px-2 font-mono font-semibold text-[#141413] text-right tabular-nums">
-                      {formatPHP(c.totalSpent)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </AdminShell>
-  );
+export default function AdminCustomersPage(){
+ const c=createClient();const [profiles,setProfiles]=useState<Profile[]>([]);const [orders,setOrders]=useState<Activity[]>([]);const [bookings,setBookings]=useState<Array<{id:string;customer_id:string}>>([]);const [search,setSearch]=useState('');const [error,setError]=useState('');
+ const load=async()=>{if(!c)return;const [a,b,d]=await Promise.all([c.from('profiles').select('id,full_name,email,phone,role,is_active,created_at').order('created_at',{ascending:false}),c.from('orders').select('id,customer_id,total_amount'),c.from('appointments').select('id,customer_id')]);if(a.error||b.error||d.error)setError(a.error?.message||b.error?.message||d.error?.message||'Unable to load customers');else{setProfiles((a.data||[]) as Profile[]);setOrders((b.data||[]) as Activity[]);setBookings((d.data||[]) as Array<{id:string;customer_id:string}>)}};
+ useEffect(()=>{void load()},[]);
+ const rows=useMemo(()=>profiles.map(p=>({ ...p, orderCount:orders.filter(o=>o.customer_id===p.id).length, bookingCount:bookings.filter(b=>b.customer_id===p.id).length, totalSpent:orders.filter(o=>o.customer_id===p.id).reduce((sum,o)=>sum+Number(o.total_amount||0),0)})).filter(p=>{const q=search.trim().toLowerCase();return !q||[p.full_name,p.email,p.phone].filter(Boolean).some(v=>String(v).toLowerCase().includes(q))}),[profiles,orders,bookings,search]);
+ return <AdminShell title="Customers" subtitle="Manage actual customer accounts from profiles, with order and booking activity."><div className="bg-white border border-[#E5E5E0] rounded-xl p-6 space-y-5"><div className="flex items-center justify-between gap-4"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name, email, or phone…" className="w-full max-w-md px-3 py-2 text-sm border rounded-lg bg-[#FAF9F6]"/><span className="text-xs text-[#6E6E68]">{rows.length} customers</span></div>{error&&<p className="text-xs text-red-700">{error}</p>}<div className="overflow-x-auto"><table className="w-full text-left border-collapse text-xs"><thead><tr className="border-b border-[#E5E5E0] text-[#6E6E68]"><th className="py-3 px-2">Customer</th><th className="py-3 px-2">Contact</th><th className="py-3 px-2">Role / Status</th><th className="py-3 px-2">Orders</th><th className="py-3 px-2">Bookings</th><th className="py-3 px-2 text-right">Total Spend</th></tr></thead><tbody className="divide-y divide-[#E5E5E0]">{rows.map(p=><tr key={p.id}><td className="py-3 px-2 font-semibold">{p.full_name||'Unnamed Customer'}</td><td className="py-3 px-2 text-[#52524E]">{[p.email,p.phone].filter(Boolean).join(' · ')||'—'}</td><td className="py-3 px-2"><button onClick={async()=>{if(!c)return;const r=await c.from('profiles').update({is_active:!p.is_active}).eq('id',p.id);if(r.error)setError(r.error.message);else await load()}} className="font-semibold">{p.role} · <span className="text-red-700">{p.is_active?'Active':'Inactive'}</span></button></td><td className="py-3 px-2 font-mono">{p.orderCount}</td><td className="py-3 px-2 font-mono">{p.bookingCount}</td><td className="py-3 px-2 text-right font-mono font-semibold">{formatPHP(p.totalSpent)}</td></tr>)}</tbody></table></div></div></AdminShell>;
 }
