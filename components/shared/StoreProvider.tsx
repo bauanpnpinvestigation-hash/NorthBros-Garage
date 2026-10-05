@@ -295,7 +295,10 @@ function mapService(row: any): AutomotiveService {
     name: row.name,
     category: row.service_categories?.name || 'Uncategorized',
     price: Number(row.price || 0),
+    price_type: row.price_type || 'fixed',
     duration_minutes: Number(row.duration_minutes || 0),
+    is_bookable: !!row.is_bookable,
+    requires_inspection: !!row.requires_inspection,
     duration_label: row.duration_minutes
       ? row.duration_minutes + ' mins'
       : 'By inspection',
