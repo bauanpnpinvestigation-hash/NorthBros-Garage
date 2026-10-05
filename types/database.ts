@@ -97,6 +97,11 @@ export interface ServiceBooking {
   service_slug: string;
   service_name: string;
   service_price: number;
+  branch_id?: string;
+  branch_name?: string;
+  customer_vehicle_id?: string;
+  assigned_staff_id?: string;
+  assigned_staff_name?: string;
   user_id?: string;
   customer_name: string;
   customer_email: string;
