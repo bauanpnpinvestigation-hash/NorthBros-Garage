@@ -4,10 +4,12 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useStore } from '@/components/shared/StoreProvider';
-import { formatDate, formatPHP } from '@/lib/utils/format';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
+import { formatDate, formatCurrency } from '@/lib/utils/format';
 
 export default function OrdersAndBookingsPage() {
   const { orders, serviceBookings } = useStore();
+  const { getCurrency } = useAppSettings();
 
   return (
     <div className="max-w-[1360px] mx-auto px-4 sm:px-8 py-12 space-y-12">
@@ -93,12 +95,12 @@ export default function OrdersAndBookingsPage() {
                           </Link>
                           <p className="text-xs text-[#6E6E68] font-mono tabular-nums">
                             SKU: {item.sku} · Qty: {item.quantity} ×{' '}
-                            {formatPHP(item.unit_price)}
+                            {formatCurrency(item.unit_price, getCurrency())}
                           </p>
                         </div>
                       </div>
                       <span className="text-sm font-mono font-bold text-[#141413] tabular-nums">
-                        {formatPHP(item.subtotal)}
+                        {formatCurrency(item.subtotal, getCurrency())}
                       </span>
                     </div>
                   ))}
@@ -140,7 +142,7 @@ export default function OrdersAndBookingsPage() {
                 Vehicle: {sb.vehicle_details}
               </p>
               <p className="text-xs font-mono font-bold text-[#141413] tabular-nums pt-1">
-                Package Rate: {formatPHP(sb.service_price)}
+                Package Rate: {formatCurrency(sb.service_price, getCurrency())}
               </p>
             </div>
           ))}
