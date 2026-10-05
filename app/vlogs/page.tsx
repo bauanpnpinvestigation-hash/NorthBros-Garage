@@ -112,7 +112,7 @@ export default function VlogsPage() {
           title: title.trim(),
           published_at: new Date().toISOString().split('T')[0],
           duration: duration.trim() || '14:30',
-          author_name: authorName.trim() || user?.name || 'NorthBros Garage',
+          author_name: authorName.trim() || user?.name || 'Workshop Team',
           author_role: 'Master Technician & Founder',
           category,
           summary: bodyParagraph.trim() || summary.trim(),
@@ -154,10 +154,10 @@ export default function VlogsPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#E5E5E0]">
         <div className="space-y-2">
           <p className="text-xs font-medium text-red-800">
-            NorthBros Workshop Daily Series · Part Installations, PMS & Diagnostics
+            Workshop Daily Series · Part Installations, Service & Diagnostics
           </p>
           <h1 className="font-display text-3xl sm:text-4xl font-bold text-[#141413] tracking-tight">
-            Daily Service Bay Vlog & Install Guides
+            Daily Workshop Vlogs & Guides
           </h1>
           <p className="text-sm text-[#6E6E68] max-w-2xl">
             Watch our technicians unbox genuine car parts, demonstrate proper
@@ -166,7 +166,7 @@ export default function VlogsPage() {
           </p>
         </div>
 
-        {user ? (
+        {user?.role === 'admin' ? (
           <button
             type="button"
             onClick={openCreateModal}
@@ -277,7 +277,7 @@ export default function VlogsPage() {
                       <span>·</span>
                       <span>{vlog.author_name}</span>
                     </div>
-                    {user && (
+                    {user?.role === 'admin' && (
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
