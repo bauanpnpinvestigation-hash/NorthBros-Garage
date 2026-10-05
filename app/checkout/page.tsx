@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useStore } from '@/components/shared/StoreProvider';
-import { formatPHP } from '@/lib/utils/format';
+import { formatCurrency } from '@/lib/utils/format';
 import { Order } from '@/types/database';
 import { createClient } from '@/lib/supabase/client';
 import { useAppSettings } from '@/components/shared/AppSettingsProvider';
@@ -11,7 +11,7 @@ import { CheckCircle2, ShieldCheck } from 'lucide-react';
 
 export default function CheckoutPage() {
   const { cart, createOrder, user } = useStore();
-  const { getString } = useAppSettings();
+  const { getString, getCurrency } = useAppSettings();
   const [paymentMethods, setPaymentMethods] = useState<Array<{code:string;name:string;description:string|null}>>([]);
   const [paymentLoading, setPaymentLoading] = useState(true);
 
@@ -165,13 +165,13 @@ export default function CheckoutPage() {
             {confirmedOrder.discount_amount > 0 && (
               <div className="flex justify-between text-[#15803D]">
                 <span>Promotion Discount</span>
-                <span className="font-mono">-{formatPHP(confirmedOrder.discount_amount)}</span>
+                <span className="font-mono">-{formatCurrency(confirmedOrder.discount_amount, getCurrency())}</span>
               </div>
             )}
             <div className="pt-2 border-t border-[#E5E5E0] flex justify-between text-sm font-bold text-[#141413]">
               <span>Total Order Amount</span>
               <span className="font-mono tabular-nums">
-                {formatPHP(confirmedOrder.total_amount)}
+                {formatCurrency(confirmedOrder.total_amount, getCurrency())}
               </span>
             </div>
           </div>
@@ -415,7 +415,7 @@ export default function CheckoutPage() {
                   </p>
                 </div>
                 <span className="font-mono font-bold text-[#141413] tabular-nums shrink-0">
-                  {formatPHP(item.unit_price * item.quantity)}
+                  {formatCurrency(item.unit_price * item.quantity, getCurrency())}
                 </span>
               </div>
             ))}
@@ -424,12 +424,12 @@ export default function CheckoutPage() {
           <div className="pt-3 border-t border-[#E5E5E0] space-y-2 text-xs">
             <div className="flex justify-between text-[#52524E]">
               <span>Parts Subtotal</span>
-              <span className="font-mono tabular-nums">{formatPHP(subtotal)}</span>
+              <span className="font-mono tabular-nums">{formatCurrency(subtotal, getCurrency())}</span>
             </div>
             <div className="flex justify-between text-[#52524E]">
               <span>Shipping Fee</span>
               <span className="font-mono tabular-nums">
-                {shippingFee === 0 ? 'FREE' : formatPHP(shippingFee)}
+                {shippingFee === 0 ? 'FREE' : formatCurrency(shippingFee, getCurrency())}
               </span>
             </div>
             {promotionCode.trim() && (
@@ -442,7 +442,7 @@ export default function CheckoutPage() {
                 Total Payable
               </span>
               <span className="text-2xl font-bold text-[#141413] font-mono tabular-nums">
-                {formatPHP(totalAmount)}
+                {formatCurrency(totalAmount, getCurrency())}
               </span>
             </div>
           </div>
