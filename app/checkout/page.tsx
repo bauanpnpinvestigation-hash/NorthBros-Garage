@@ -48,7 +48,7 @@ export default function CheckoutPage() {
           return settlement === 'offline' || Boolean(String(config.provider || '').trim());
         });
         setPaymentMethods(configuredMethods);
-        if (methods[0]) setPaymentMethod(methods[0].code);
+        if (configuredMethods[0]) setPaymentMethod(configuredMethods[0].code);
       }
       setPaymentLoading(false);
     });
