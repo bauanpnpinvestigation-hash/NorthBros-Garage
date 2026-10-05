@@ -550,24 +550,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           videoRow?.thumbnail_path ||
           rawVideo;
 
-        const postTypeMap: Record<string, VlogPost['category']> = {
-          behind_the_scenes: 'Service Bay Vlog',
-          installation: 'Part Install Guide',
-          repair: 'Dyno & Diagnostics',
-          new_arrival: 'Tool & Part Review',
-          shop_update: 'Service Bay Vlog',
-        };
+        const category = String(x.post_type || '')
+          .split('_')
+          .filter(Boolean)
+          .map((part: string) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' ');
 
         return {
           id: x.id,
           slug: x.id,
           episode_number: data!.length - i,
-          title: x.title || 'NorthBros Garage Workshop Update',
+          title: x.title || '',
           published_at: x.published_at || x.created_at,
-          duration: '14:30',
-          author_name: 'NorthBros Garage',
-          author_role: 'Workshop',
-          category: postTypeMap[x.post_type] || 'Service Bay Vlog',
+          duration: '',
+          author_name: x.profiles?.full_name || '',
+          author_role: '',
+          category,
           summary: x.caption || '',
           content: x.caption ? x.caption.split('\n\n') : [],
           thumbnail_url: resolveDisplayImageUrl(
@@ -578,16 +576,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             ? publicStorageUrl('daily-shop', rawVideo)
             : undefined,
           media_type: rawVideo ? 'video' : 'image',
-          video_highlights: [
-            {
-              timestamp: '00:00',
-              label: 'Workshop bay inspection & overview',
-            },
-            {
-              timestamp: '04:30',
-              label: 'Step-by-step installation & torque specs',
-            },
-          ],
+          video_highlights: [],
           views_count: 0,
           likes_count: x.daily_post_likes?.length || 0,
           comments: (x.daily_post_comments || []).map((cm: any) => ({
