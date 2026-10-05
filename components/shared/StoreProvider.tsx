@@ -1294,24 +1294,47 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deletePart = async (id: string) => {
-    if (!user || user.role !== 'admin')
-      throw new Error('Administrator authorization required.');
+    if (!user || user.role !== 'admin') {
+      showToast('Administrator authorization required.', 'error');
+      return;
+    }
+
     const c = sb();
-    if (!c) return;
-    
-    // Manually cleanup dependencies
-    await c.from('product_images').delete().eq('product_id', id);
-    await c.from('product_vehicle_compatibility').delete().eq('product_id', id);
-    await c.from('inventory').delete().eq('product_id', id);
-    await c.from('cart_items').delete().eq('product_id', id);
-    await c.from('favorites').delete().eq('product_id', id);
-    
-    // Finally delete product
-    const r = await c.from('products').delete().eq('id', id);
-    if (r.error) throw r.error;
-    
-    await loadCatalog();
-    showToast('Part permanently deleted.');
+    if (!c) {
+      showToast('Supabase is not configured.', 'error');
+      return;
+    }
+
+    try {
+      // These two relations use RESTRICT and must be removed before the product.
+      const cartItemsDelete = await c
+        .from('cart_items')
+        .delete()
+        .eq('product_id', id);
+      if (cartItemsDelete.error) throw cartItemsDelete.error;
+
+      const reservationsDelete = await c
+        .from('inventory_reservations')
+        .delete()
+        .eq('product_id', id);
+      if (reservationsDelete.error) throw reservationsDelete.error;
+
+      // The remaining product relations use CASCADE/SET NULL where appropriate.
+      const productDelete = await c
+        .from('products')
+        .delete()
+        .eq('id', id);
+      if (productDelete.error) throw productDelete.error;
+
+      await loadCatalog();
+      showToast('Part permanently deleted.');
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to delete the part.';
+      showToast(message, 'error');
+    }
   };
 
   const updatePartStatus = async (id: string, status: ProductStatus) =>
