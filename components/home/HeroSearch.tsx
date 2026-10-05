@@ -2,12 +2,27 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { Search } from 'lucide-react';
 import { useStore } from '@/components/shared/StoreProvider';
 
 export function HeroSearch() {
   const router = useRouter();
   const { categories } = useStore();
+  const [vehicleMakes, setVehicleMakes] = useState<Array<{ id: string; name: string; slug: string }>>([]);
+
+  React.useEffect(() => {
+    const client = createClient();
+    if (!client) return;
+    void client
+      .from('vehicle_makes')
+      .select('id,name,slug')
+      .eq('is_active', true)
+      .order('name')
+      .then(({ data }: { data: Array<{ id: string; name: string; slug: string }> | null }) => {
+        setVehicleMakes(data || []);
+      });
+  }, []);
   const [keyword, setKeyword] = useState('');
   const [category, setCategory] = useState('all');
   const [make, setMake] = useState('all');
@@ -73,12 +88,11 @@ export function HeroSearch() {
             className="w-full px-3 py-2.5 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg focus:outline-none focus:border-[#141413]"
           >
             <option value="all">All Vehicle Makes</option>
-            <option value="Toyota">Fits Toyota</option>
-            <option value="Honda">Fits Honda</option>
-            <option value="Mitsubishi">Fits Mitsubishi</option>
-            <option value="Ford">Fits Ford</option>
-            <option value="Nissan">Fits Nissan</option>
-            <option value="Mazda">Fits Mazda</option>
+            {vehicleMakes.map((vehicleMake) => (
+              <option key={vehicleMake.id} value={vehicleMake.name}>
+                Fits {vehicleMake.name}
+              </option>
+            ))}
           </select>
         </div>
 
