@@ -1,285 +1,153 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AdminShell } from '@/components/admin/AdminShell';
+import { MediaUploadInput } from '@/components/shared/MediaUploadInput';
 import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { AppSetting } from '@/types/database';
 
-function formatEditorValue(value: unknown): string {
+type KnownField = {
+  key: string;
+  label: string;
+  category: string;
+  description: string;
+  type?: 'text' | 'textarea' | 'number';
+};
+
+const KNOWN_FIELDS: KnownField[] = [
+  { key:'branding.site_name', label:'Business / Store Name', category:'Branding', description:'The primary business name used throughout the storefront.' },
+  { key:'branding.tagline', label:'Business Tagline', category:'Branding', description:'Short identity line shown in the storefront.' },
+  { key:'branding.logo_url', label:'Logo URL', category:'Branding', description:'Primary logo media URL.', type:'text' },
+  { key:'contact.address', label:'Business Address', category:'Contact', description:'Primary business or branch address.' },
+  { key:'contact.phone', label:'Business Phone', category:'Contact', description:'Primary contact phone.' },
+  { key:'contact.email', label:'Business Email', category:'Contact', description:'Primary contact email.' },
+  { key:'contact.facebook', label:'Facebook URL', category:'Contact', description:'Public Facebook page URL.' },
+  { key:'business.hours', label:'Business Hours', category:'Business', description:'Human-readable operating hours.' },
+  { key:'business.timezone', label:'Business Timezone', category:'Business', description:'Timezone used when displaying business schedules.' },
+  { key:'store.shipping_fee', label:'Default Shipping Fee', category:'Store', description:'Default storefront shipping fee before free-shipping threshold.', type:'number' },
+  { key:'store.free_shipping_threshold', label:'Free Shipping Threshold', category:'Store', description:'Order subtotal that qualifies for free shipping.', type:'number' },
+  { key:'homepage.eyebrow', label:'Homepage Eyebrow', category:'Homepage', description:'Small introductory line above the homepage title.' },
+  { key:'homepage.title', label:'Homepage Title', category:'Homepage', description:'Primary homepage headline.' },
+  { key:'homepage.description', label:'Homepage Description', category:'Homepage', description:'Homepage supporting description.' },
+  { key:'footer.about', label:'Footer About Text', category:'Footer', description:'Footer business description.' },
+  { key:'footer.payments_label', label:'Footer Payment Label', category:'Footer', description:'Payment summary text displayed in the footer.' },
+  { key:'footer.copyright', label:'Footer Copyright', category:'Footer', description:'Custom copyright line. Leave blank to generate it automatically.' },
+];
+
+function displayValue(value: unknown): string {
   if (typeof value === 'string') return value;
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value ?? '');
-  }
+  if (value === null || value === undefined) return '';
+  try { return JSON.stringify(value); } catch { return String(value); }
 }
 
-function parseEditorValue(value: string): unknown {
-  const trimmed = value.trim();
-  if (!trimmed) return '';
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    return value;
-  }
+function parseValue(value: string, type?: KnownField['type']): unknown {
+  if (type === 'number') return Number(value) || 0;
+  return value;
 }
+
+const defaultMainMenu = [
+  { href:'/parts', label:'Car Parts' },
+  { href:'/services', label:'Services' },
+  { href:'/categories', label:'Categories' },
+  { href:'/brands', label:'Brands' },
+  { href:'/vlogs', label:'Daily Vlog' },
+];
 
 export default function AdminSettingsPage() {
-  const {
-    settings,
-    loading,
-    refreshSettings,
-    createSetting,
-    updateSetting,
-    deleteSetting,
-  } = useAppSettings();
-
-  const [category, setCategory] = useState('branding');
-  const [key, setKey] = useState('');
-  const [value, setValue] = useState('');
-  const [description, setDescription] = useState('');
-  const [isPublic, setIsPublic] = useState(true);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const { settings, loading, refreshSettings, createSetting, updateSetting, deleteSetting } = useAppSettings();
+  const [values, setValues] = useState<Record<string,string>>({});
+  const [saving, setSaving] = useState<string|null>(null);
   const [error, setError] = useState('');
+  const [advancedCategory, setAdvancedCategory] = useState('general');
+  const [advancedKey, setAdvancedKey] = useState('');
+  const [advancedValue, setAdvancedValue] = useState('');
+  const [advancedPublic, setAdvancedPublic] = useState(true);
+  const [editingAdvancedId, setEditingAdvancedId] = useState<string|null>(null);
 
-  const grouped = useMemo(() => {
-    return settings.reduce<Record<string, AppSetting[]>>((acc, item) => {
-      (acc[item.category] ||= []).push(item);
-      return acc;
-    }, {});
+  useEffect(() => {
+    const next: Record<string,string> = {};
+    for (const field of KNOWN_FIELDS) {
+      const item = settings.find((x) => x.setting_key === field.key);
+      next[field.key] = item ? displayValue(item.setting_value) : '';
+    }
+    setValues(next);
   }, [settings]);
 
-  const resetForm = () => {
-    setEditingId(null);
-    setCategory('branding');
-    setKey('');
-    setValue('');
-    setDescription('');
-    setIsPublic(true);
-    setError('');
-  };
+  const grouped = useMemo(() => settings.reduce<Record<string,AppSetting[]>>((acc,item) => {
+    (acc[item.category] ||= []).push(item);
+    return acc;
+  }, {}), [settings]);
 
-  const startEdit = (item: AppSetting) => {
-    setEditingId(item.id);
-    setCategory(item.category);
-    setKey(item.setting_key);
-    setValue(formatEditorValue(item.setting_value));
-    setDescription(item.description || '');
-    setIsPublic(item.is_public);
-    setError('');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setError('');
-
-    const cleanKey = key.trim();
-    if (!cleanKey) {
-      setError('Setting key is required.');
-      return;
-    }
-
-    const payload = {
-      category: category.trim() || 'general',
-      setting_key: cleanKey,
-      setting_value: parseEditorValue(value),
-      is_public: isPublic,
-      description: description.trim() || null,
-    };
-
+  const saveKnown = async (field: KnownField) => {
+    setError(''); setSaving(field.key);
     try {
-      if (editingId) {
-        await updateSetting(editingId, payload);
+      const value = parseValue(values[field.key] || '', field.type);
+      const existing = settings.find((x) => x.setting_key === field.key);
+      if (existing) {
+        await updateSetting(existing.id, { category: field.category.toLowerCase(), setting_value:value, is_public:true, description:field.description });
       } else {
-        await createSetting(payload);
+        await createSetting({ category:field.category.toLowerCase(), setting_key:field.key, setting_value:value, is_public:true, description:field.description });
       }
-      resetForm();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to save this setting.');
+      setError(err instanceof Error ? err.message : 'Unable to save setting.');
+    } finally {
+      setSaving(null);
     }
   };
 
-  const handleDelete = async (item: AppSetting) => {
-    if (!window.confirm(`Delete setting "${item.setting_key}" permanently?`)) return;
-    setError('');
+  const saveAdvanced = async (e:React.FormEvent) => {
+    e.preventDefault(); setError('');
+    const key = advancedKey.trim(); if (!key) { setError('Setting key is required.'); return; }
+    let parsed: unknown = advancedValue;
+    try { if (advancedValue.trim()) parsed = JSON.parse(advancedValue); } catch { /* plain text is allowed */ }
     try {
-      await deleteSetting(item.id);
-      if (editingId === item.id) resetForm();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to delete this setting.');
-    }
+      if (editingAdvancedId) await updateSetting(editingAdvancedId, { category:advancedCategory.trim()||'general', setting_value:parsed, is_public:advancedPublic });
+      else await createSetting({ category:advancedCategory.trim()||'general', setting_key:key, setting_value:parsed, is_public:advancedPublic, description:null });
+      setAdvancedKey(''); setAdvancedValue(''); setEditingAdvancedId(null); setAdvancedPublic(true);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to save setting.'); }
   };
 
-  return (
-    <AdminShell
-      title="Global Application Settings"
-      subtitle="Configure the business identity, branding, content, contact information, theme, and footer without changing code."
-    >
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        <form
-          onSubmit={handleSubmit}
-          className="xl:col-span-5 bg-white border border-[#E5E5E0] rounded-xl p-6 space-y-4 h-fit"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="font-display text-base font-bold">
-                {editingId ? 'Edit Setting' : 'Add Setting'}
-              </h2>
-              <p className="text-[11px] text-[#6E6E68]">
-                Values may be plain text or valid JSON.
-              </p>
+  const editAdvanced = (item:AppSetting) => {
+    setEditingAdvancedId(item.id); setAdvancedCategory(item.category); setAdvancedKey(item.setting_key); setAdvancedValue(displayValue(item.setting_value)); setAdvancedPublic(item.is_public);
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
+
+  return <AdminShell title="Global Business Configuration" subtitle="Configure business identity, storefront behavior, navigation, homepage copy, contact details, and footer content without changing application code.">
+    <div className="space-y-6">
+      <section className="bg-white border border-[#E5E5E0] rounded-xl p-6">
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <div><h2 className="font-display text-lg font-bold">Quick Business Setup</h2><p className="text-xs text-[#6E6E68]">The fields below are the main settings a new business owner should configure first.</p></div>
+          <button type="button" onClick={() => void refreshSettings(false)} className="px-3 py-2 text-xs font-semibold border border-[#E5E5E0] rounded-lg">Refresh</button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {KNOWN_FIELDS.filter(f => f.key !== 'branding.logo_url').map(field => (
+            <div key={field.key} className={field.type === 'textarea' ? 'md:col-span-2' : ''}>
+              <div className="flex items-center justify-between mb-1"><label className="text-xs font-semibold">{field.label}</label><button type="button" disabled={saving===field.key} onClick={() => void saveKnown(field)} className="text-[11px] font-semibold text-[#141413] hover:underline">{saving===field.key?'Saving…':'Save'}</button></div>
+              {field.key.includes('description') || field.key==='footer.about' || field.key==='branding.tagline' ? <textarea rows={3} value={values[field.key]||''} onChange={e=>setValues(v=>({...v,[field.key]:e.target.value}))} className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"/> : <input type={field.type==='number'?'number':'text'} value={values[field.key]||''} onChange={e=>setValues(v=>({...v,[field.key]:e.target.value}))} className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"/>}
+              <p className="mt-1 text-[10px] text-[#6E6E68]">{field.description}</p>
             </div>
-            {editingId && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="text-xs font-semibold text-[#52524E] hover:text-[#141413]"
-              >
-                Cancel edit
-              </button>
-            )}
-          </div>
+          ))}
+        </div>
+        <div className="mt-5 max-w-xl"><MediaUploadInput label="Business Logo" value={values['branding.logo_url']||''} onChange={(url)=>setValues(v=>({...v,'branding.logo_url':url}))} cloudinaryFolder="branding" helperText="Upload the business logo to Cloudinary, then save the branding.logo_url setting with the button below."/><div className="flex justify-end mt-2"><button type="button" disabled={saving==='branding.logo_url'} onClick={()=>void saveKnown(KNOWN_FIELDS.find(f=>f.key==='branding.logo_url')!)} className="px-4 py-2 bg-[#141413] text-white rounded-lg text-xs font-semibold">{saving==='branding.logo_url'?'Saving…':'Save Logo'}</button></div></div>
+      </section>
 
-          <div>
-            <label className="block text-xs font-semibold mb-1">Category</label>
-            <input
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="branding"
-              className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
-            />
-          </div>
+      <section className="bg-white border border-[#E5E5E0] rounded-xl p-6">
+        <h2 className="font-display text-lg font-bold mb-2">Main Navigation</h2>
+        <p className="text-xs text-[#6E6E68] mb-4">Use Advanced Settings to replace navigation.main_menu with a JSON array such as [{'"'}{"'"}href{"'"'}:{'"'}/parts{"'"'},{"'"'}label{"'"'}:{'"'"}Car Parts{"'"'}{"}"}].</p>
+        <button type="button" onClick={()=>{setAdvancedCategory('navigation');setAdvancedKey('navigation.main_menu');setAdvancedValue(JSON.stringify(defaultMainMenu,null,2));setAdvancedPublic(true);window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})}} className="px-4 py-2 bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg text-xs font-semibold">Load Default Menu into Advanced Editor</button>
+      </section>
 
-          <div>
-            <label className="block text-xs font-semibold mb-1">Setting Key</label>
-            <input
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              placeholder="branding.site_name"
-              disabled={Boolean(editingId)}
-              className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg font-mono"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold mb-1">Value</label>
-            <textarea
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              rows={7}
-              placeholder={'"NorthBros Garage"'}
-              className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg font-mono"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold mb-1">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              placeholder="What this setting controls"
-              className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
-            />
-          </div>
-
-          <label className="inline-flex items-center gap-2 text-xs font-semibold cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isPublic}
-              onChange={(e) => setIsPublic(e.target.checked)}
-            />
-            Public storefront setting
-          </label>
-
-          {error && <p className="text-xs text-red-700">{error}</p>}
-
-          <button
-            type="submit"
-            className="w-full py-2.5 bg-[#141413] text-white text-xs font-semibold rounded-lg hover:bg-neutral-800"
-          >
-            {editingId ? 'Save Changes' : 'Create Setting'}
-          </button>
+      <section className="bg-white border border-[#E5E5E0] rounded-xl p-6">
+        <div className="flex items-center justify-between mb-5"><div><h2 className="font-display text-lg font-bold">Advanced Settings</h2><p className="text-xs text-[#6E6E68]">Add reusable settings for future modules without modifying schema or code.</p></div></div>
+        <form onSubmit={saveAdvanced} className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
+          <input value={advancedCategory} onChange={e=>setAdvancedCategory(e.target.value)} placeholder="Category" className="px-3 py-2 text-sm border rounded-lg bg-[#FAF9F6]"/>
+          <input value={advancedKey} onChange={e=>setAdvancedKey(e.target.value)} placeholder="setting.key" disabled={Boolean(editingAdvancedId)} className="px-3 py-2 text-sm border rounded-lg bg-[#FAF9F6] font-mono"/>
+          <textarea value={advancedValue} onChange={e=>setAdvancedValue(e.target.value)} rows={2} placeholder='Value or JSON' className="px-3 py-2 text-sm border rounded-lg bg-[#FAF9F6] font-mono"/>
+          <div className="space-y-2"><label className="flex gap-2 text-xs font-semibold"><input type="checkbox" checked={advancedPublic} onChange={e=>setAdvancedPublic(e.target.checked)}/> Public</label><div className="flex gap-2"><button className="flex-1 py-2 bg-[#141413] text-white rounded-lg text-xs font-semibold">{editingAdvancedId?'Save':'Create'}</button>{editingAdvancedId&&<button type="button" onClick={()=>{setEditingAdvancedId(null);setAdvancedKey('');setAdvancedValue('')}} className="px-3 text-xs font-semibold">Cancel</button>}</div></div>
         </form>
-
-        <section className="xl:col-span-7 bg-white border border-[#E5E5E0] rounded-xl p-6">
-          <div className="flex items-center justify-between gap-3 mb-5">
-            <div>
-              <h2 className="font-display text-base font-bold">Configured Settings</h2>
-              <p className="text-[11px] text-[#6E6E68]">
-                {settings.length} setting{settings.length === 1 ? '' : 's'}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => void refreshSettings(true)}
-              className="px-3 py-1.5 text-xs font-semibold border border-[#E5E5E0] rounded-lg hover:bg-[#FAF9F6]"
-            >
-              Refresh
-            </button>
-          </div>
-
-          {loading ? (
-            <p className="text-sm text-[#6E6E68] py-10 text-center">
-              Loading settings…
-            </p>
-          ) : settings.length === 0 ? (
-            <p className="text-sm text-[#6E6E68] py-10 text-center">
-              No settings configured yet.
-            </p>
-          ) : (
-            <div className="space-y-6">
-              {Object.entries(grouped).map(([group, items]) => (
-                <div key={group} className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wide text-[#6E6E68]">
-                    {group}
-                  </h3>
-                  <div className="divide-y divide-[#E5E5E0] border border-[#E5E5E0] rounded-lg overflow-hidden">
-                    {items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="p-4 flex flex-col md:flex-row md:items-start justify-between gap-4"
-                      >
-                        <div className="min-w-0 space-y-1">
-                          <p className="text-xs font-mono font-semibold break-all">
-                            {item.setting_key}
-                          </p>
-                          <pre className="text-[11px] whitespace-pre-wrap break-words text-[#52524E] bg-[#FAF9F6] rounded p-2">
-                            {formatEditorValue(item.setting_value)}
-                          </pre>
-                          {item.description && (
-                            <p className="text-[11px] text-[#6E6E68]">{item.description}</p>
-                          )}
-                          <p className="text-[10px] text-[#6E6E68]">
-                            {item.is_public ? 'Public' : 'Private'}
-                          </p>
-                        </div>
-                        <div className="shrink-0 flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => startEdit(item)}
-                            className="text-xs font-semibold hover:underline"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleDelete(item)}
-                            className="text-xs font-semibold text-red-700 hover:underline"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-    </AdminShell>
-  );
+        {error&&<p className="text-xs text-red-700 mb-4">{error}</p>}
+        {loading?<p className="text-sm text-[#6E6E68]">Loading settings…</p>:settings.length===0?<p className="text-sm text-[#6E6E68]">No settings yet. Use Quick Business Setup above.</p>:<div className="space-y-5">{Object.entries(grouped).map(([group,items])=><div key={group}><h3 className="text-xs font-bold uppercase tracking-wide text-[#6E6E68] mb-2">{group}</h3><div className="divide-y border border-[#E5E5E0] rounded-lg overflow-hidden">{items.map(item=><div key={item.id} className="p-4 flex items-start justify-between gap-4"><div className="min-w-0"><p className="text-xs font-mono font-semibold break-all">{item.setting_key}</p><pre className="mt-1 text-[11px] whitespace-pre-wrap break-words text-[#52524E] bg-[#FAF9F6] rounded p-2">{displayValue(item.setting_value)}</pre><p className="text-[10px] text-[#6E6E68]">{item.is_public?'Public':'Private'}</p></div><div className="flex gap-3 text-xs shrink-0"><button onClick={()=>editAdvanced(item)} className="font-semibold hover:underline">Edit</button><button onClick={async()=>{if(window.confirm('Delete this setting permanently?')){try{await deleteSetting(item.id)}catch(err){setError(err instanceof Error?err.message:'Unable to delete setting.')}}}} className="font-semibold text-red-700">Delete</button></div></div>)}</div></div>)}</div>}
+      </section>
+    </div>
+  </AdminShell>;
 }
