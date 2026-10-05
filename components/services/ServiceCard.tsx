@@ -4,10 +4,11 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { AutomotiveService } from '@/types/database';
-import { formatPHP } from '@/lib/utils/format';
+import { formatCurrency } from '@/lib/utils/format';
 import { ArrowRight, Clock } from 'lucide-react';
 
 export function ServiceCard({ service }: { service: AutomotiveService }) {
+  const { getCurrency } = useAppSettings();
   return (
     <article className="group bg-white border border-[#E5E5E0] rounded-xl overflow-hidden flex flex-col justify-between transition-transform duration-150 hover:-translate-y-0.5">
       <div>
@@ -55,7 +56,7 @@ export function ServiceCard({ service }: { service: AutomotiveService }) {
         <div>
           <p className="text-[11px] text-[#6E6E68]">Package Rate</p>
           <p className="text-lg font-bold text-[#141413] font-mono tabular-nums">
-            {formatPHP(service.price)}
+            {formatCurrency(service.price, getCurrency())}
           </p>
         </div>
 
