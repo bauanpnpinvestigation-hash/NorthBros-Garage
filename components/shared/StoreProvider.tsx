@@ -13,7 +13,7 @@ import {
   clearLocalAuthCookieBackup,
   createClient,
 } from '@/lib/supabase/client';
-import { resolveUserRole } from '@/lib/auth/role';
+import { isStaffRole, resolveUserRole } from '@/lib/auth/role';
 import {
   isVideoMediaUrl,
   resolveDisplayImageUrl,
@@ -895,7 +895,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const p = await loadProfile(authUser.id, authUser);
           if (mounted && p) setUser(p);
           await loadCustomerData(authUser.id);
-          if (p?.role === 'admin') await loadAdminData();
+          if (p ? isStaffRole(p.role) : false) await loadAdminData();
         }
         await loadCatalog();
         await loadVlogs();
@@ -916,7 +916,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const p = await loadProfile(session.user.id, session.user);
           if (mounted && p) setUser(p);
           await loadCustomerData(session.user.id);
-          if (p?.role === 'admin') await loadAdminData();
+          if (p ? isStaffRole(p.role) : false) await loadAdminData();
         }, 0);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
@@ -1149,7 +1149,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const p = await loadProfile(authUser.id, authUser);
     if (p) setUser(p);
     await loadCustomerData(authUser.id);
-    if (p?.role === 'admin') await loadAdminData();
+    if (p ? isStaffRole(p.role) : false) await loadAdminData();
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -1172,9 +1172,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const p = await loadProfile(data.user.id, data.user);
     if (p) setUser(p);
     await loadCustomerData(data.user.id);
-    if (p?.role === 'admin') {
+    if (p ? isStaffRole(p.role) : false) {
       await loadAdminData();
-      showToast('Signed in as Administrator.');
+      showToast('Signed in to the staff console.');
       router.push('/admin');
       router.refresh();
     } else {
@@ -1308,7 +1308,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addPart = async (part: any) => {
-    if (!user?.role || user.role !== 'admin')
+    if (!user?.role || !isStaffRole(user.role))
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) throw new Error('Supabase is not configured.');
@@ -1404,7 +1404,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updatePart = async (id: string, updates: any) => {
-    if (!user || user.role !== 'admin')
+    if (!user || !isStaffRole(user.role))
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) throw new Error('Supabase is not configured.');
@@ -1569,7 +1569,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deletePart = async (id: string) => {
-    if (!user || user.role !== 'admin') {
+    if (!user || !isStaffRole(user.role)) {
       showToast('Administrator authorization required.', 'error');
       return;
     }
@@ -1600,7 +1600,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     updatePart(id, { status });
 
   const addService = async (srv: any) => {
-    if (!user || user.role !== 'admin')
+    if (!user || !isStaffRole(user.role))
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) throw new Error('Supabase is not configured.');
@@ -1655,7 +1655,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     id: string,
     updates: Partial<AutomotiveService>
   ) => {
-    if (!user || user.role !== 'admin')
+    if (!user || !isStaffRole(user.role))
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) throw new Error('Supabase is not configured.');
@@ -1695,7 +1695,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteService = async (id: string) => {
-    if (!user || user.role !== 'admin')
+    if (!user || !isStaffRole(user.role))
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) return;
@@ -1719,7 +1719,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     id: string,
     status: ServiceBookingStatus
   ) => {
-    if (!user || user.role !== 'admin')
+    if (!user || !isStaffRole(user.role))
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) return;
@@ -1744,7 +1744,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     fulfillmentStatus: OrderFulfillmentStatus,
     paymentStatus?: PaymentStatus
   ) => {
-    if (!user || user.role !== 'admin')
+    if (!user || !isStaffRole(user.role))
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) return;
@@ -1777,7 +1777,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addBrand = async (brand: any) => {
-    if (!user || user.role !== 'admin')
+    if (!user || !isStaffRole(user.role))
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) return;
@@ -1794,7 +1794,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateBrand = async (id: string, updates: Partial<Brand>) => {
-    if (!user || user.role !== 'admin')
+    if (!user || !isStaffRole(user.role))
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) return;
@@ -1812,7 +1812,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteBrand = async (id: string) => {
-    if (!user || user.role !== 'admin')
+    if (!user || !isStaffRole(user.role))
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) throw new Error('Supabase is not configured.');
@@ -1838,7 +1838,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addCategory = async (cat: any) => {
-    if (!user || user.role !== 'admin')
+    if (!user || !isStaffRole(user.role))
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) return;
@@ -1855,7 +1855,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateCategory = async (id: string, updates: Partial<Category>) => {
-    if (!user || user.role !== 'admin')
+    if (!user || !isStaffRole(user.role))
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) return;
@@ -1873,7 +1873,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteCategory = async (id: string) => {
-    if (!user || user.role !== 'admin')
+    if (!user || !isStaffRole(user.role))
       throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) throw new Error('Supabase is not configured.');
@@ -1904,7 +1904,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addVlog = async (vlog: any): Promise<VlogPost> => {
-    if (!user || user.role !== 'admin') throw new Error('Administrator authorization required.');
+    if (!user || !isStaffRole(user.role)) throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) throw new Error('Supabase is not configured.');
     const types: any = {
@@ -1963,7 +1963,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateVlog = async (id: string, updates: Partial<VlogPost>) => {
-    if (!user || user.role !== 'admin') throw new Error('Administrator authorization required.');
+    if (!user || !isStaffRole(user.role)) throw new Error('Administrator authorization required.');
     const c = sb();
     if (!c) throw new Error('Supabase is not configured.');
     const types: any = {
@@ -2014,7 +2014,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteVlog = async (id: string) => {
-    if (!user || user.role !== 'admin') {
+    if (!user || !isStaffRole(user.role)) {
       showToast('Administrator authorization required.', 'error');
       return;
     }
