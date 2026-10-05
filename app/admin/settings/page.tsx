@@ -76,7 +76,7 @@ export default function AdminSettingsPage() {
       next[field.key] = item ? displayValue(item.setting_value) : '';
     }
     setValues(next);
-  }, [settings]);
+  }, [settings, refreshSettings]);
 
   const grouped = useMemo(() => settings.reduce<Record<string,AppSetting[]>>((acc,item) => {
     (acc[item.category] ||= []).push(item);
