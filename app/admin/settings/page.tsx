@@ -29,6 +29,7 @@ const KNOWN_FIELDS: KnownField[] = [
   { key:'homepage.eyebrow', label:'Homepage Eyebrow', category:'Homepage', description:'Small introductory line above the homepage title.' },
   { key:'homepage.title', label:'Homepage Title', category:'Homepage', description:'Primary homepage headline.' },
   { key:'homepage.description', label:'Homepage Description', category:'Homepage', description:'Homepage supporting description.' },
+  { key:'homepage.hero_image', label:'Homepage Hero Image URL', category:'Homepage', description:'Primary hero background image URL.' },
   { key:'footer.about', label:'Footer About Text', category:'Footer', description:'Footer business description.' },
   { key:'footer.payments_label', label:'Footer Payment Label', category:'Footer', description:'Payment summary text displayed in the footer.' },
   { key:'footer.copyright', label:'Footer Copyright', category:'Footer', description:'Custom copyright line. Leave blank to generate it automatically.' },
@@ -78,6 +79,43 @@ export default function AdminSettingsPage() {
     return acc;
   }, {}), [settings]);
 
+  const initializeDefaults = async () => {
+    const c = (await import('@/lib/supabase/client')).createClient();
+    if (!c) { setError('Supabase is not configured.'); return; }
+    setError('');
+    const defaults: Record<string, unknown> = {
+      'branding.site_name':'NorthBros Garage',
+      'branding.tagline':'Professional automotive parts and workshop services.',
+      'branding.logo_url':'',
+      'contact.address':'Business address not configured',
+      'contact.phone':'',
+      'contact.email':'',
+      'contact.facebook':'',
+      'business.hours':'Business hours not configured',
+      'business.timezone':'Asia/Manila',
+      'store.shipping_fee':250,
+      'store.free_shipping_threshold':5000,
+      'homepage.eyebrow':'Automotive Parts & Services',
+      'homepage.title':'Parts, service, and workshop care in one place.',
+      'homepage.description':'Browse the catalog, choose a service, and manage your vehicle needs from one storefront.',
+      'homepage.hero_image':'/images/hero_parts_workshop.jpg',
+      'footer.about':'A configurable automotive storefront for parts, services, and workshop operations.',
+      'footer.payments_label':'Configured payment methods',
+      'footer.copyright':'',
+      'navigation.main_menu':defaultMainMenu,
+    };
+    const rows = Object.entries(defaults).map(([setting_key,setting_value]) => ({
+      category: setting_key.split('.')[0],
+      setting_key,
+      setting_value,
+      is_public: true,
+      description: KNOWN_FIELDS.find((field) => field.key === setting_key)?.description || 'Default storefront configuration',
+    }));
+    const { error: upsertError } = await c.from('app_settings').upsert(rows, { onConflict:'setting_key' });
+    if (upsertError) { setError(upsertError.message); return; }
+    await refreshSettings(false);
+  };
+
   const saveKnown = async (field: KnownField) => {
     setError(''); setSaving(field.key);
     try {
@@ -117,7 +155,10 @@ export default function AdminSettingsPage() {
       <section className="bg-white border border-[#E5E5E0] rounded-xl p-6">
         <div className="flex items-center justify-between gap-4 mb-6">
           <div><h2 className="font-display text-lg font-bold">Quick Business Setup</h2><p className="text-xs text-[#6E6E68]">The fields below are the main settings a new business owner should configure first.</p></div>
-          <button type="button" onClick={() => void refreshSettings(false)} className="px-3 py-2 text-xs font-semibold border border-[#E5E5E0] rounded-lg">Refresh</button>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => void initializeDefaults()} className="px-3 py-2 text-xs font-semibold border border-[#E5E5E0] rounded-lg">Initialize Defaults</button>
+            <button type="button" onClick={() => void refreshSettings(false)} className="px-3 py-2 text-xs font-semibold border border-[#E5E5E0] rounded-lg">Refresh</button>
+          </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {KNOWN_FIELDS.filter(f => f.key !== 'branding.logo_url').map(field => (
