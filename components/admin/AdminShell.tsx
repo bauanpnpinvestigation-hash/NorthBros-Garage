@@ -23,7 +23,7 @@ const ADMIN_LINKS = [
   { href: '/admin/payments', label: 'Payments' },
   { href: '/admin/promotions', label: 'Promotions' },
   { href: '/admin/staff', label: 'Staff' },
-  { href: '/vlogs', label: 'Daily Vlogs' },
+  { href: '/admin/vlogs', label: 'Daily Vlogs' },
   { href: '/admin/settings', label: 'Settings' },
 ];
 
