@@ -237,8 +237,8 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
     const c=sb();if(!c){showToast('Supabase is not configured.','error');return false;}
     const {data,error}=await c.auth.signUp({email:email.trim().toLowerCase(),password,options:{data:{full_name:name.trim(),phone:phone.trim()}}});
     if(error){showToast(error.message,'error');return false;}
-    if(data.user){const p=await loadProfile(data.user.id);setUser(p);}
-    showToast(data.session?'Account created.':'Account created. Check your email to confirm.');return true;
+    if(data.user&&data.session){const p=await loadProfile(data.user.id);setUser(p);showToast('Account created.');return true;}
+    showToast('Account created. Check your email to confirm.','info');return false;
   };
   const logout=async()=>{const c=sb();if(c)await c.auth.signOut();setUser(null);setFavorites([]);setCart([]);setOrders([]);setServiceBookings([]);};
   const updateProfile=async(updates:Partial<UserProfile>)=>{
