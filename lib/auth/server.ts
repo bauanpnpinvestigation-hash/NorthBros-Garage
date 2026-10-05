@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { resolveUserRole, type UserRole } from './role';
+import { isStaffRole, resolveUserRole, type UserRole } from './role';
 
 export async function getCurrentUser() {
   const supabase = await createServerSupabaseClient();
@@ -68,22 +68,21 @@ export async function requireUser() {
 }
 
 export async function requireAdmin() {
-  const user = await getCurrentUser();
-  if (!user) {
-    const cookieStore = await cookies();
-    const hasAuthCookie = cookieStore
-      .getAll()
-      .some((c) => c.name.startsWith('sb-'));
-    if (hasAuthCookie) {
-      redirect('/auth/login');
-    }
-    return { user: null, profile: null, role: 'admin' as UserRole };
+  const supabase = await createServerSupabaseClient();
+  if (!supabase) {
+    redirect('/auth/login');
   }
 
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) {
+    redirect('/auth/login');
+  }
+
+  const user = data.user;
   const profile = await getCurrentProfile(user.id);
   const role = resolveUserRole(user, profile);
 
-  if (role !== 'admin') {
+  if (!isStaffRole(role)) {
     redirect('/account');
   }
 
