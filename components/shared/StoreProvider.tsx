@@ -13,7 +13,7 @@ interface ToastMessage { id: string; type: 'success' | 'error' | 'info'; text: s
 interface StoreContextType {
   parts: PartProduct[]; brands: Brand[]; categories: Category[]; services: AutomotiveService[];
   serviceBookings: ServiceBooking[]; vlogs: VlogPost[]; favorites: string[]; cart: CartItem[];
-  orders: Order[]; user: UserProfile | null; isHydrated: boolean;
+  orders: Order[]; user: UserProfile | null; isHydrated: boolean; refreshAuth: () => Promise<void>;
   showToast: (text: string, type?: 'success'|'error'|'info') => void;
   toggleFavorite: (partId: string) => Promise<void>;
   addToCart: (part: PartProduct, quantity?: number) => Promise<boolean>;
@@ -182,7 +182,7 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
   useEffect(()=>{
     let mounted=true; const c=sb();
     (async()=>{
-      if(c){ const {data:{session}}=await c.auth.getSession(); if(mounted&&session){const p=await loadProfile(session.user.id);if(p)setUser(p);await loadCustomerData(session.user.id);if(p?.role==='admin')await loadAdminData();}
+      if(c){ const {data:{user:authUser}}=await c.auth.getUser(); if(mounted&&authUser){const p=await loadProfile(authUser.id);if(p)setUser(p);await loadCustomerData(authUser.id);if(p?.role==='admin')await loadAdminData();}
         await loadCatalog(); await loadVlogs(); }
       if(mounted)setIsHydrated(true);
     })();
@@ -238,6 +238,16 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
     const c=sb();if(!c)throw new Error('Supabase is not configured.');
     const {data,error}=await c.rpc('create_customer_appointment',{p_service_id:payload.service_id,p_branch_id:payload.branch_id||null,p_customer_vehicle_id:payload.customer_vehicle_id||null,p_scheduled_start:payload.scheduled_start,p_scheduled_end:payload.scheduled_end||null,p_notes:payload.notes||null});
     if(error)throw error;await loadCustomerData(user.id);showToast('Service appointment request submitted.');return data;
+  };
+
+  const refreshAuth=async()=>{
+    const c=sb();if(!c)return;
+    const {data:{user:authUser}}=await c.auth.getUser();
+    if(!authUser){setUser(null);return;}
+    const p=await loadProfile(authUser.id);
+    if(p)setUser(p);
+    await loadCustomerData(authUser.id);
+    if(p?.role==='admin')await loadAdminData();
   };
 
   const login=async(email:string,password:string)=>{
@@ -306,7 +316,7 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
   const likeVlog=async(vlogId:string)=>{if(!user){showToast('Please sign in to like posts.','error');return;}const c=sb();if(!c)return;const r=await c.from('daily_post_likes').insert({post_id:vlogId,user_id:user.id});if(r.error&&r.code!=='23505')showToast(r.error.message,'error');};
   const addVlogComment=async(vlogId:string,_userName:string,text:string)=>{if(!user){showToast('Please sign in to comment.','error');return;}const c=sb();if(!c)return;const r=await c.from('daily_post_comments').insert({post_id:vlogId,user_id:user.id,content:text.trim()});if(r.error)showToast(r.error.message,'error');};
 
-  const value=useMemo(()=>({parts,brands,categories,services,serviceBookings,vlogs,favorites,cart,orders,user,isHydrated,showToast,toggleFavorite,addToCart,updateCartQuantity,removeFromCart,clearCart,createOrder,createServiceBooking,login,register,logout,updateProfile,addPart,updatePart,deletePart,updatePartStatus,addService,updateServiceBookingStatus,updateOrderStatus,addBrand,addCategory,addVlog,likeVlog,addVlogComment}),[parts,brands,categories,services,serviceBookings,vlogs,favorites,cart,orders,user,isHydrated]);
+  const value=useMemo(()=>({parts,brands,categories,services,serviceBookings,vlogs,favorites,cart,orders,user,isHydrated,refreshAuth,showToast,toggleFavorite,addToCart,updateCartQuantity,removeFromCart,clearCart,createOrder,createServiceBooking,login,register,logout,updateProfile,addPart,updatePart,deletePart,updatePartStatus,addService,updateServiceBookingStatus,updateOrderStatus,addBrand,addCategory,addVlog,likeVlog,addVlogComment}),[parts,brands,categories,services,serviceBookings,vlogs,favorites,cart,orders,user,isHydrated]);
   return <StoreContext.Provider value={value}>{children}<div aria-live="polite" className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0">{toasts.map(t=><div key={t.id} className="pointer-events-auto flex items-center justify-between gap-3 bg-[#141413] text-white px-4 py-3 rounded-lg shadow-lg border border-neutral-800 text-sm"><div className="flex items-center gap-2.5">{t.type==='error'?<AlertCircle className="w-4 h-4 text-red-400 shrink-0"/>:<CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0"}/><span>{t.text}</span></div><button type="button" onClick={()=>setToasts(p=>p.filter(x=>x.id!==t.id))} aria-label="Close notification"><X className="w-4 h-4"/></button></div>)}</div></StoreContext.Provider>;
 }
 export function useStore(){const c=useContext(StoreContext);if(!c)throw new Error('useStore must be used within a StoreProvider');return c;}
