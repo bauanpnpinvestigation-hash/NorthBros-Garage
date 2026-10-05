@@ -5,15 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/components/shared/StoreProvider';
 import { PartProduct, ProductStatus } from '@/types/database';
 import { slugify } from '@/lib/utils/format';
-
-const PART_IMAGE_PRESETS = [
-  { label: 'Brembo Ceramic Brake Pads', url: '/images/part_brake_pad.jpg' },
-  { label: 'Motul Synthetic Oil & Filter Kit', url: '/images/part_oil_filter_kit.jpg' },
-  { label: 'NGK Iridium Spark Plugs Set', url: '/images/part_spark_plugs.jpg' },
-  { label: 'Bilstein B6 Performance Shock Absorbers', url: '/images/part_suspension_shocks.jpg' },
-  { label: 'Denso Direct-Fit Automotive Alternator', url: '/images/part_alternator.jpg' },
-  { label: 'Michelin Pilot Sport 5 Performance Tires', url: '/images/part_performance_tire.jpg' },
-];
+import { MediaUploadInput } from '@/components/shared/MediaUploadInput';
 
 interface PartFormProps {
   initialPart?: PartProduct;
@@ -24,39 +16,38 @@ export function PartForm({ initialPart }: PartFormProps) {
   const { brands, categories, addPart, updatePart } = useStore();
 
   const [brandSlug, setBrandSlug] = useState(
-    initialPart?.brand_slug || brands[0]?.slug || 'brembo'
+    initialPart?.brand_slug || brands[0]?.slug || ''
   );
   const [categorySlug, setCategorySlug] = useState(
-    initialPart?.category_slug || categories[0]?.slug || 'brakes'
+    initialPart?.category_slug || categories[0]?.slug || ''
   );
   const [name, setName] = useState(initialPart?.name || '');
   const [sku, setSku] = useState(initialPart?.sku || '');
-  const [price, setPrice] = useState(String(initialPart?.price || 4850));
+  const [price, setPrice] = useState(initialPart ? String(initialPart.price) : '');
   const [compareAtPrice, setCompareAtPrice] = useState(
     initialPart?.compare_at_price ? String(initialPart.compare_at_price) : ''
   );
-  const [stock, setStock] = useState(String(initialPart?.stock ?? 24));
+  const [stock, setStock] = useState(initialPart ? String(initialPart.stock) : '0');
   const [status, setStatus] = useState<ProductStatus>(
     initialPart?.status || 'Active'
   );
   const [isFeatured, setIsFeatured] = useState(
-    initialPart ? initialPart.is_featured : true
+    initialPart ? initialPart.is_featured : false
   );
   const [primaryImage, setPrimaryImage] = useState(
-    initialPart?.primary_image || '/images/part_brake_pad.jpg'
+    initialPart?.primary_image || ''
   );
   const [description, setDescription] = useState(
-    initialPart?.description ||
-      'Genuine high-performance OEM replacement engineered for maximum heat dissipation, low dust, and immediate pedal bite.'
+    initialPart?.description || ''
   );
-  const [compatibilityMake, setCompatibilityMake] = useState('Toyota');
-  const [compatibilityModel, setCompatibilityModel] = useState('Fortuner / Hilux / Prado');
-  const [compatibilityYears, setCompatibilityYears] = useState('2016-2025');
-  const [compatibilityEngine, setCompatibilityEngine] = useState('2.4L / 2.8L D-4D 1GD/2GD');
+  const [compatibilityMake, setCompatibilityMake] = useState('');
+  const [compatibilityModel, setCompatibilityModel] = useState('');
+  const [compatibilityYears, setCompatibilityYears] = useState('');
+  const [compatibilityEngine, setCompatibilityEngine] = useState('');
 
-  const [specMaterial, setSpecMaterial] = useState(initialPart?.specifications?.Material || 'Carbon Ceramic Compound');
-  const [specWarranty, setSpecWarranty] = useState(initialPart?.specifications?.Warranty || '1 Year / 20,000 km');
-  const [specOrigin, setSpecOrigin] = useState(initialPart?.specifications?.['Country of Origin'] || 'Italy / Japan OEM');
+  const [specMaterial, setSpecMaterial] = useState(initialPart?.specifications?.Material || '');
+  const [specWarranty, setSpecWarranty] = useState(initialPart?.specifications?.Warranty || '');
+  const [specOrigin, setSpecOrigin] = useState(initialPart?.specifications?.['Country of Origin'] || '');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -373,22 +364,13 @@ export function PartForm({ initialPart }: PartFormProps) {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-[#141413] mb-1">
-              Catalog Product Image
-            </label>
-            <select
-              value={primaryImage}
-              onChange={(e) => setPrimaryImage(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
-            >
-              {PART_IMAGE_PRESETS.map((preset) => (
-                <option key={preset.url} value={preset.url}>
-                  {preset.label} ({preset.url})
-                </option>
-              ))}
-            </select>
-          </div>
+          <MediaUploadInput
+            label="Catalog Product Image"
+            value={primaryImage}
+            onChange={setPrimaryImage}
+            cloudinaryFolder="products"
+            helperText="Uploads are stored under NorthBros Garage/products."
+          />
 
           <div className="flex items-center pt-5">
             <label className="inline-flex items-center gap-2 text-xs font-semibold text-[#141413] cursor-pointer">
