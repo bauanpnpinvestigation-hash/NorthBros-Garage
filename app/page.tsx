@@ -12,7 +12,7 @@ export default function HomePage() {
         <div className="relative min-h-[560px] lg:min-h-[600px] w-full flex items-center">
           <Image
             src="/images/hero_parts_workshop.jpg"
-            alt="Apex Auto Parts Counter and Precision Service Workshop"
+            alt="Automotive parts and professional workshop services"
             fill
             priority
             sizes="100vw"
@@ -24,18 +24,16 @@ export default function HomePage() {
           <div className="relative z-10 max-w-[1360px] mx-auto px-4 sm:px-8 py-16 w-full space-y-8">
             <div className="max-w-2xl space-y-4">
               <p className="text-xs sm:text-sm font-medium text-neutral-300 tracking-wide">
-                Genuine OEM & Performance Car Parts · Professional Service Bays
+                Automotive Parts & Services
               </p>
               <h1
                 className="font-display text-3xl sm:text-5xl lg:text-[52px] font-bold tracking-tight leading-[1.1] text-white"
                 style={{ textWrap: 'balance' }}
               >
-                Precision Car Parts & Automotive Services.
+                Parts, service, and workshop care in one place.
               </h1>
               <p className="text-sm sm:text-base text-neutral-200 leading-relaxed max-w-xl">
-                Shop verified brake kits, synthetic PMS oil bundles, AGM
-                batteries, and Bilstein suspension parts—or book your next oil
-                change, alignment, and diagnostic service online.
+                Browse the catalog, choose a service, and manage your vehicle needs from one storefront.
               </p>
             </div>
 
