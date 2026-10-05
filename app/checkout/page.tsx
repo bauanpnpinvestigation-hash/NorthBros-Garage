@@ -12,7 +12,7 @@ import { CheckCircle2, ShieldCheck } from 'lucide-react';
 export default function CheckoutPage() {
   const { cart, createOrder, user } = useStore();
   const { getString, getCurrency } = useAppSettings();
-  const [paymentMethods, setPaymentMethods] = useState<Array<{code:string;name:string;description:string|null}>>([]);
+  const [paymentMethods, setPaymentMethods] = useState<Array<{code:string;name:string;description:string|null;public_config:Record<string,unknown>}>>([]);
   const [paymentLoading, setPaymentLoading] = useState(true);
 
   const [customerName, setCustomerName] = useState(user?.name || '');
@@ -38,10 +38,10 @@ export default function CheckoutPage() {
   useEffect(() => {
     const c = createClient();
     if (!c) { setPaymentLoading(false); return; }
-    void c.from('payment_methods').select('code,name,description').eq('is_enabled', true).order('sort_order').then(({ data, error }: any) => {
+    void c.from('payment_methods').select('code,name,description,public_config').eq('is_enabled', true).order('sort_order').then(({ data, error }: any) => {
       if (error) setErrors((current) => ({ ...current, submit: error.message }));
       else {
-        const methods = (data || []) as Array<{code:string;name:string;description:string|null}>;
+        const methods = (data || []) as Array<{code:string;name:string;description:string|null;public_config:Record<string,unknown>}>;
         setPaymentMethods(methods);
         if (methods[0]) setPaymentMethod(methods[0].code);
       }
@@ -90,6 +90,21 @@ export default function CheckoutPage() {
         customer_notes: notes.trim() || undefined, idempotency_key: checkoutIdempotencyKey,
         items: cart.map((c) => ({ product_id: c.product_id, quantity: c.quantity })),
       });
+      const paymentConfig = (selectedPayment.public_config || {}) as Record<string, unknown>;
+      const settlementMode = String(paymentConfig.settlement_mode || 'online').toLowerCase();
+      if (settlementMode !== 'offline' && result.payment_id) {
+        const supabase = createClient();
+        if (!supabase) throw new Error('Supabase is not configured.');
+        const { data: paymentSession, error: paymentError } = await supabase.functions.invoke('payment-gateway', {
+          body: { payment_id: result.payment_id, order_id: result.id },
+        });
+        if (paymentError) throw paymentError;
+        if (paymentSession?.checkout_url) {
+          window.location.assign(paymentSession.checkout_url);
+          return;
+        }
+      }
+
       setConfirmedOrder({
         id: result.id,
         order_number: result.order_number,
