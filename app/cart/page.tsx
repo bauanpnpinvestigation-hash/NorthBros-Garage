@@ -4,16 +4,20 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useStore } from '@/components/shared/StoreProvider';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { formatPHP } from '@/lib/utils/format';
 import { Minus, Plus, Trash2, ArrowRight } from 'lucide-react';
 
 export default function CartPage() {
   const { cart, updateCartQuantity, removeFromCart } = useStore();
+  const { getString } = useAppSettings();
   const subtotal = cart.reduce(
     (sum, item) => sum + item.unit_price * item.quantity,
     0
   );
-  const shippingFee = subtotal === 0 || subtotal >= 5000 ? 0 : 250;
+  const shippingThreshold = Number(getString('store.free_shipping_threshold', '5000')) || 5000;
+  const configuredShippingFee = Number(getString('store.shipping_fee', '250')) || 0;
+  const shippingFee = subtotal === 0 || subtotal >= shippingThreshold ? 0 : configuredShippingFee;
   const total = subtotal + shippingFee;
 
 
@@ -143,7 +147,7 @@ export default function CartPage() {
                 </span>
               </div>
               <div className="flex justify-between text-[#52524E]">
-                <span>Nationwide Shipping</span>
+                <span>Shipping</span>
                 <span className="font-mono font-semibold text-[#141413] tabular-nums">
                   {shippingFee === 0 ? 'FREE' : formatPHP(shippingFee)}
                 </span>
