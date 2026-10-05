@@ -4,8 +4,9 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { PartProduct } from '@/types/database';
-import { formatPHP } from '@/lib/utils/format';
+import { formatCurrency } from '@/lib/utils/format';
 import { useStore } from '@/components/shared/StoreProvider';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { Heart, ShoppingCart } from 'lucide-react';
 
 interface PartCardProps {
@@ -15,6 +16,7 @@ interface PartCardProps {
 
 export function PartCard({ part, priority = false }: PartCardProps) {
   const { favorites, toggleFavorite, addToCart } = useStore();
+  const { getCurrency } = useAppSettings();
   const isFavorited = favorites.includes(part.id);
   const inStock = part.stock > 0 && part.status === 'Active';
 
@@ -102,11 +104,11 @@ export function PartCard({ part, priority = false }: PartCardProps) {
         <div className="pt-3 border-t border-[#E5E5E0] flex items-center justify-between gap-3">
           <div>
             <p className="text-lg font-bold text-[#141413] font-mono tabular-nums tracking-tight">
-              {formatPHP(part.price)}
+              {formatCurrency(part.price, getCurrency())}
             </p>
             {part.compare_at_price && part.compare_at_price > part.price && (
               <p className="text-[11px] text-[#6E6E68] line-through font-mono tabular-nums">
-                {formatPHP(part.compare_at_price)}
+                {formatCurrency(part.compare_at_price, getCurrency())}
               </p>
             )}
           </div>
