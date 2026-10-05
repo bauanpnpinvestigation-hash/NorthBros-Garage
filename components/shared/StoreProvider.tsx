@@ -90,7 +90,7 @@ function mapService(row:any): AutomotiveService {
 }
 
 function mapOrder(row:any): Order {
-  const addr=row.addresses||{};
+  const addr=row.addresses||{}; const profile=row.profiles||{};
   const items=Array.isArray(row.order_items)?row.order_items.map((i:any)=>({
     product_id:i.product_id||'', product_slug:i.products?.slug||'', sku:i.sku||'', name:i.product_name,
     brand_name:i.products?.brands?.name||'', unit_price:Number(i.unit_price||0), quantity:i.quantity,
@@ -144,13 +144,15 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
     if(!s.error) setServices((s.data||[]).map(mapService));
   };
 
+  const loadAdminData=async()=>{const c=sb();if(!c)return;const [ord,ap]=await Promise.all([c.from('orders').select('*,profiles(full_name,email,phone),addresses(*),order_items(*,products(slug,brands(name),product_images(storage_path,is_primary))),payments(*)').order('created_at',{ascending:false}),c.from('appointments').select('*,profiles(full_name,email,phone),appointment_services(*,services(name,price,slug)),customer_vehicles(*,vehicle_variants(*,vehicle_models(*,vehicle_makes(*))))').order('scheduled_start',{ascending:false})]);if(!ord.error)setOrders((ord.data||[]).map(mapOrder));if(!ap.error)setServiceBookings((ap.data||[]).map((x:any)=>{const as=x.appointment_services?.[0],cv=x.customer_vehicles?.vehicle_variants,mm=cv?.vehicle_models,mk=mm?.vehicle_makes;const st:any={pending:'Pending',confirmed:'Confirmed',checked_in:'Confirmed',in_progress:'In Service Bay',completed:'Completed',cancelled:'Cancelled',no_show:'Cancelled'};return{id:x.id,booking_reference:x.appointment_number,service_id:as?.service_id||'',service_slug:as?.services?.slug||'',service_name:as?.services?.name||'',service_price:Number(as?.unit_price||as?.services?.price||0),user_id:x.customer_id,customer_name:x.profiles?.full_name||'',customer_email:x.profiles?.email||'',customer_phone:x.profiles?.phone||'',vehicle_details:[mk?.name,mm?.name,cv?.name].filter(Boolean).join(' '),preferred_date:new Date(x.scheduled_start).toLocaleDateString('en-CA',{timeZone:'Asia/Manila'}),preferred_time:new Date(x.scheduled_start).toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Manila'}),notes:x.customer_notes||'',status:st[x.status]||'Pending',created_at:x.created_at};}));};
+
   const loadCustomerData=async(id:string)=>{
     const c=sb(); if(!c) return;
     const [fav,ci,ord,ap]=await Promise.all([
       c.from('favorites').select('product_id').eq('customer_id',id),
       c.from('carts').select('id,cart_items(product_id,quantity,unit_price,products(id,slug,sku,name,price,brands(name),product_images(storage_path,is_primary)))').eq('customer_id',id).eq('status','active').maybeSingle(),
-      c.from('orders').select('*,addresses(*),order_items(*,products(slug,brands(name),product_images(storage_path,is_primary))),payments(*)').eq('customer_id',id).order('created_at',{ascending:false}),
-      c.from('appointments').select('*,appointment_services(*,services(name,price)),customer_vehicles(*,vehicle_variants(*,vehicle_models(*,vehicle_makes(*))))').eq('customer_id',id).order('scheduled_start',{ascending:false}),
+      c.from('orders').select('*,profiles(full_name,email,phone),addresses(*),order_items(*,products(slug,brands(name),product_images(storage_path,is_primary))),payments(*)').eq('customer_id',id).order('created_at',{ascending:false}),
+      c.from('appointments').select('*,profiles(full_name,email,phone),appointment_services(*,services(name,price,slug)),customer_vehicles(*,vehicle_variants(*,vehicle_models(*,vehicle_makes(*))))').eq('customer_id',id).order('scheduled_start',{ascending:false}),
     ]);
     if(!fav.error) setFavorites((fav.data||[]).map((x:any)=>x.product_id));
     if(!ci.error && ci.data) {
@@ -158,20 +160,20 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
       setCart(raw.map((x:any)=>({product_id:x.product_id,product_slug:x.products?.slug||'',sku:x.products?.sku||'',name:x.products?.name||'',brand_name:x.products?.brands?.name||'',unit_price:Number(x.unit_price||x.products?.price||0),quantity:x.quantity,max_stock:999999,image:publicStorageUrl('product-images',x.products?.product_images?.find((i:any)=>i.is_primary)?.storage_path)})));
     } else setCart([]);
     if(!ord.error) setOrders((ord.data||[]).map(mapOrder));
-    if(!ap.error) setServiceBookings((ap.data||[]).map((x:any)=>{const as=x.appointment_services?.[0];const cv=x.customer_vehicles?.vehicle_variants;const mm=cv?.vehicle_models;const mk=mm?.vehicle_makes;return {id:x.id,booking_reference:x.appointment_number,service_id:as?.service_id||'',service_slug:as?.services?.slug||'',service_name:as?.services?.name||'',service_price:Number(as?.unit_price||as?.services?.price||0),user_id:id,customer_name:'',customer_email:'',customer_phone:'',vehicle_details:[mk?.name,mm?.name,cv?.name].filter(Boolean).join(' '),preferred_date:new Date(x.scheduled_start).toISOString().slice(0,10),preferred_time:new Date(x.scheduled_start).toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}),notes:x.customer_notes||'',status:x.status,created_at:x.created_at};}));
+    if(!ap.error) setServiceBookings((ap.data||[]).map((x:any)=>{const as=x.appointment_services?.[0];const cv=x.customer_vehicles?.vehicle_variants;const mm=cv?.vehicle_models;const mk=mm?.vehicle_makes;const st:any={pending:'Pending',confirmed:'Confirmed',checked_in:'Confirmed',in_progress:'In Service Bay',completed:'Completed',cancelled:'Cancelled',no_show:'Cancelled'};return {id:x.id,booking_reference:x.appointment_number,service_id:as?.service_id||'',service_slug:as?.services?.slug||'',service_name:as?.services?.name||'',service_price:Number(as?.unit_price||as?.services?.price||0),user_id:x.customer_id,customer_name:x.profiles?.full_name||'',customer_email:x.profiles?.email||'',customer_phone:x.profiles?.phone||'',vehicle_details:[mk?.name,mm?.name,cv?.name].filter(Boolean).join(' '),preferred_date:new Date(x.scheduled_start).toLocaleDateString('en-CA',{timeZone:'Asia/Manila'}),preferred_time:new Date(x.scheduled_start).toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Manila'}),notes:x.customer_notes||'',status:st[x.status]||'Pending',created_at:x.created_at};}));
   };
 
   useEffect(()=>{
     let mounted=true; const c=sb();
     (async()=>{
-      if(c){ const {data:{session}}=await c.auth.getSession(); if(mounted&&session){const p=await loadProfile(session.user.id);setUser(p);await loadCustomerData(session.user.id);}
+      if(c){ const {data:{session}}=await c.auth.getSession(); if(mounted&&session){const p=await loadProfile(session.user.id);setUser(p);await loadCustomerData(session.user.id);if(p?.role==='admin')await loadAdminData();}
         await loadCatalog(); }
       if(mounted)setIsHydrated(true);
     })();
     if(!c) return ()=>{mounted=false};
     const {data:{subscription}}=c.auth.onAuthStateChange((_e,session)=>{
       if(!mounted)return;
-      if(session){setTimeout(async()=>{const p=await loadProfile(session.user.id);if(mounted)setUser(p);await loadCustomerData(session.user.id);},0);}
+      if(session){setTimeout(async()=>{const p=await loadProfile(session.user.id);if(mounted)setUser(p);await loadCustomerData(session.user.id);if(p?.role==='admin')await loadAdminData();},0);}
       else {setUser(null);setFavorites([]);setCart([]);setOrders([]);setServiceBookings([]);}
     });
     return ()=>{mounted=false;subscription.unsubscribe();};
@@ -233,7 +235,7 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
     if(data.user){const p=await loadProfile(data.user.id);setUser(p);}
     showToast(data.session?'Account created.':'Account created. Check your email to confirm.');return true;
   };
-  const logout=async()=>{const c=sb();if(c)await c.auth.signOut();setUser(null);};
+  const logout=async()=>{const c=sb();if(c)await c.auth.signOut();setUser(null);setFavorites([]);setCart([]);setOrders([]);setServiceBookings([]);};
   const updateProfile=async(updates:Partial<UserProfile>)=>{
     if(!user) return;const c=sb();if(!c)return;
     const patch:any={};if(updates.name!==undefined)patch.full_name=updates.name;if(updates.phone!==undefined)patch.phone=updates.phone;
