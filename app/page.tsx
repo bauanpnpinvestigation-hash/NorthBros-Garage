@@ -8,7 +8,6 @@ import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 
 export default function HomePage() {
   const { getString } = useAppSettings();
-  const siteName = getString('branding.site_name', 'NorthBros Garage');
   const eyebrow = getString('homepage.eyebrow', 'Automotive Parts & Services');
   const title = getString('homepage.title', 'Parts, service, and workshop care in one place.');
   const description = getString('homepage.description', 'Browse the catalog, choose a service, and manage your vehicle needs from one storefront.');
