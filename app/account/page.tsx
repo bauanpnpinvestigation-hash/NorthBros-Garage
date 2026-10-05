@@ -104,7 +104,18 @@ export default function AccountDashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+        <Link
+          href="/account/vehicles"
+          className="bg-white border border-[#E5E5E0] rounded-xl p-6 space-y-2 hover:border-[#141413] transition-colors"
+        >
+          <p className="text-xs text-[#6E6E68]">My Garage</p>
+          <p className="font-display text-2xl font-bold text-[#141413] font-mono tabular-nums">
+            {customerVehicles.length} Vehicles
+          </p>
+          <p className="text-xs text-[#52524E]">Manage saved vehicles →</p>
+        </Link>
+
         <Link
           href="/account/profile"
           className="bg-white border border-[#E5E5E0] rounded-xl p-6 space-y-2 hover:border-[#141413] transition-colors"
