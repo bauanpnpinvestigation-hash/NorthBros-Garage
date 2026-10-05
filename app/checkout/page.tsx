@@ -35,7 +35,7 @@ export default function CheckoutPage() {
   const shippingFee = subtotal === 0 || subtotal >= 5000 ? 0 : 250;
   const totalAmount = subtotal + shippingFee;
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
     if (!customerName.trim()) errs.name = 'Recipient full name is required.';
@@ -53,33 +53,17 @@ export default function CheckoutPage() {
     }
 
     setErrors({});
-    const order = createOrder({
-      user_id: user?.id,
-      customer_name: customerName.trim(),
-      customer_email: customerEmail.trim(),
-      customer_phone: customerPhone.trim(),
-      shipping_address: shippingAddress.trim(),
-      shipping_city: shippingCity.trim(),
-      shipping_postal_code: shippingPostalCode.trim(),
-      payment_method: paymentMethod,
-      items: cart.map((c) => ({
-        product_id: c.product_id,
-        product_slug: c.product_slug,
-        sku: c.sku,
-        name: c.name,
-        brand_name: c.brand_name,
-        unit_price: c.unit_price,
-        quantity: c.quantity,
-        subtotal: c.unit_price * c.quantity,
-        image: c.image,
-      })),
-      subtotal,
-      shipping_fee: shippingFee,
-      discount_amount: 0,
-      total_amount: totalAmount,
-      notes: notes.trim() || undefined,
-    });
-    setConfirmedOrder(order);
+    try {
+      const code = paymentMethod === 'GCash' ? 'gcash' : paymentMethod === 'Maya' ? 'maya' : paymentMethod === 'GoTyme / QR Ph' ? 'gotyme' : 'cod';
+      const result = await createOrder({
+        recipient_name: customerName.trim(), phone: customerPhone.trim(), address_line: shippingAddress.trim(),
+        city: shippingCity.trim(), postal_code: shippingPostalCode.trim(), payment_method_code: code,
+        customer_notes: notes.trim() || undefined, items: cart.map((c) => ({ product_id: c.product_id, quantity: c.quantity })),
+      });
+      setConfirmedOrder({ id: result.id, order_number: result.order_number, customer_name: customerName.trim(), customer_email: customerEmail.trim(), customer_phone: customerPhone.trim(), shipping_address: shippingAddress.trim(), shipping_city: shippingCity.trim(), shipping_postal_code: shippingPostalCode.trim(), payment_method: paymentMethod, payment_status: paymentMethod === 'Cash on Delivery (COD)' ? 'COD Pending' : 'Pending Verification', fulfillment_status: 'Processing', items: cart, subtotal: result.subtotal, shipping_fee: result.shipping_fee, discount_amount: 0, total_amount: result.total_amount, created_at: new Date().toISOString() });
+    } catch (error) {
+      setErrors({ submit: error instanceof Error ? error.message : 'Unable to place the order. Please try again.' });
+    }
   };
 
   if (confirmedOrder) {
@@ -304,14 +288,7 @@ export default function CheckoutPage() {
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {(
-              [
-                'GCash',
-                'Maya',
-                'GoTyme / QR Ph',
-                'Cash on Delivery (COD)',
-              ] as const
-            ).map((method) => (
+            {(['GCash','Maya','GoTyme / QR Ph','Cash on Delivery (COD)'] as const).map((method) => (
               <button
                 key={method}
                 type="button"
@@ -326,6 +303,8 @@ export default function CheckoutPage() {
               </button>
             ))}
           </div>
+
+          {errors.submit && <p className="text-xs text-red-700">{errors.submit}</p>}
 
           <div>
             <label
@@ -399,8 +378,7 @@ export default function CheckoutPage() {
           <div className="flex items-center gap-2 text-[11px] text-[#6E6E68]">
             <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
             <span>
-              Official BIR Receipt & Manufacturer Warranty Card included in
-              every shipment.
+              Your order is secured in NorthBros Garage and will remain pending until payment is confirmed.
             </span>
           </div>
         </aside>
