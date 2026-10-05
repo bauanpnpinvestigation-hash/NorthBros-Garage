@@ -679,11 +679,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const st: any = {
             pending: 'Pending',
             confirmed: 'Confirmed',
-            checked_in: 'Confirmed',
+            checked_in: 'Checked In',
             in_progress: 'In Service Bay',
             completed: 'Completed',
             cancelled: 'Cancelled',
-            no_show: 'Cancelled',
+            no_show: 'No Show',
           };
           return {
             id: x.id,
@@ -706,14 +706,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               .join(' '),
             preferred_date: new Date(x.scheduled_start).toLocaleDateString(
               'en-CA',
-              { timeZone: 'Asia/Manila' }
+              { timeZone: businessTimezone }
             ),
             preferred_time: new Date(x.scheduled_start).toLocaleTimeString(
               'en-PH',
               {
                 hour: '2-digit',
                 minute: '2-digit',
-                timeZone: 'Asia/Manila',
+                timeZone: businessTimezone,
               }
             ),
             notes: x.customer_notes || '',
@@ -764,7 +764,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const c = sb();
     if (!c) return;
     await loadCustomerVehicles(id);
-    const [fav, ci, ord, ap] = await Promise.all([
+    const [fav, ci, ord, ap, timezoneSetting] = await Promise.all([
       c.from('favorites').select('product_id').eq('customer_id', id),
       c
         .from('carts')
@@ -788,7 +788,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         )
         .eq('customer_id', id)
         .order('scheduled_start', { ascending: false }),
+      c
+        .from('app_settings')
+        .select('setting_value')
+        .eq('setting_key', 'business.timezone')
+        .eq('is_public', true)
+        .maybeSingle(),
     ]);
+    const businessTimezone =
+      typeof timezoneSetting.data?.setting_value === 'string' &&
+      timezoneSetting.data.setting_value.trim()
+        ? timezoneSetting.data.setting_value.trim()
+        : 'UTC';
     if (!fav.error) setFavorites((fav.data || []).map((x: any) => x.product_id));
     if (!ci.error && ci.data) {
       const raw = (ci.data as any).cart_items || [];
