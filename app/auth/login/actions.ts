@@ -35,13 +35,25 @@ export async function loginAction(formData: FormData) {
     redirect('/auth/login?error=Supabase%20is%20not%20configured.');
   }
 
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
   if (error) {
     redirect(`/auth/login?error=${encodeURIComponent(authErrorMessage(error.message))}`);
+  }
+
+  if (data.user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .maybeSingle();
+
+    if (profile?.role === 'admin') {
+      redirect('/admin');
+    }
   }
 
   redirect('/account');
