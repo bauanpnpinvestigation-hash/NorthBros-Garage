@@ -112,9 +112,12 @@ function mapOrder(row:any): Order {
 
 async function loadProfile(id:string):Promise<UserProfile|null> {
   const c=sb(); if(!c) return null;
-  const {data}=await c.from('profiles').select('*').eq('id',id).maybeSingle();
-  if(!data) return null;
-  return {id:data.id,name:data.full_name||'',email:data.email||'',phone:data.phone||'',address:'',city:'',postal_code:'',role:data.role==='admin'?'admin':'customer',created_at:data.created_at};
+  const [{data:profile},{data:address}]=await Promise.all([
+    c.from('profiles').select('*').eq('id',id).maybeSingle(),
+    c.from('addresses').select('*').eq('customer_id',id).eq('is_default',true).order('created_at',{ascending:false}).limit(1).maybeSingle(),
+  ]);
+  if(!profile) return null;
+  return {id:profile.id,name:profile.full_name||'',email:profile.email||'',phone:profile.phone||'',address:address?.address_line||'',city:[address?.city,address?.province].filter(Boolean).join(', '),postal_code:address?.postal_code||'',role:profile.role==='admin'?'admin':'customer',created_at:profile.created_at};
 }
 
 export function StoreProvider({children}:{children:React.ReactNode}) {
@@ -239,8 +242,19 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
   const updateProfile=async(updates:Partial<UserProfile>)=>{
     if(!user) return;const c=sb();if(!c)return;
     const patch:any={};if(updates.name!==undefined)patch.full_name=updates.name;if(updates.phone!==undefined)patch.phone=updates.phone;
-    const {error}=await c.from('profiles').update(patch).eq('id',user.id);if(error){showToast(error.message,'error');return;}
-    const next={...user,...updates};setUser(next);showToast('Profile saved.');
+    if(Object.keys(patch).length){const {error}=await c.from('profiles').update(patch).eq('id',user.id);if(error){showToast(error.message,'error');return;}}
+    if(updates.address!==undefined||updates.city!==undefined||updates.postal_code!==undefined){
+      const addressLine=updates.address!==undefined?updates.address:user.address;
+      const cityText=updates.city!==undefined?updates.city:user.city;
+      const parts=cityText.split(',').map(x=>x.trim()).filter(Boolean);
+      const province=parts.length>1?parts.slice(1).join(', '):null;
+      const city=parts[0]||null;
+      const current=(await c.from('addresses').select('id').eq('customer_id',user.id).eq('is_default',true).order('created_at',{ascending:false}).limit(1).maybeSingle()).data;
+      const payload:any={customer_id:user.id,label:'Default',recipient_name:updates.name!==undefined?updates.name:user.name,phone:updates.phone!==undefined?updates.phone:user.phone,address_line:addressLine||'N/A',city,province,postal_code:updates.postal_code!==undefined?updates.postal_code:user.postal_code,is_default:true};
+      const ar=current?await c.from('addresses').update(payload).eq('id',current.id):await c.from('addresses').insert(payload);
+      if(ar.error){showToast(ar.error.message,'error');return;}
+    }
+    const refreshed=await loadProfile(user.id);if(refreshed)setUser(refreshed);else setUser({...user,...updates});showToast('Profile saved.');
   };
 
   const addPart=async(part:any)=>{
