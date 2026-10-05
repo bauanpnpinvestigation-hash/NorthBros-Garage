@@ -35,8 +35,8 @@ export default function VlogsPage() {
     | 'Dyno & Diagnostics'
     | 'Tool & Part Review'
   >('Service Bay Vlog');
-  const [duration, setDuration] = useState('15:20');
-  const [authorName, setAuthorName] = useState('Marco Villanueva');
+  const [duration, setDuration] = useState('');
+  const [authorName, setAuthorName] = useState('');
   const [featuredPartSlug, setFeaturedPartSlug] = useState(
     parts[0]?.slug || ''
   );
@@ -54,8 +54,8 @@ export default function VlogsPage() {
     setEditingVlog(null);
     setTitle('');
     setCategory('Service Bay Vlog');
-    setDuration('15:20');
-    setAuthorName(user?.name || 'Marco Villanueva');
+    setDuration('');
+    setAuthorName(user?.name || '');
     setFeaturedPartSlug(parts[0]?.slug || '');
     setMediaUrl('');
     setThumbnailUrl('');
@@ -68,8 +68,8 @@ export default function VlogsPage() {
     setEditingVlog(vlog);
     setTitle(vlog.title);
     setCategory(vlog.category);
-    setDuration(vlog.duration || '15:20');
-    setAuthorName(vlog.author_name || 'NorthBros Garage');
+    setDuration(vlog.duration || '');
+    setAuthorName(vlog.author_name || '');
     setFeaturedPartSlug(vlog.featured_part_slug || parts[0]?.slug || '');
     setMediaUrl(vlog.video_url || vlog.thumbnail_url || '');
     setThumbnailUrl(vlog.thumbnail_url || '');
@@ -111,7 +111,7 @@ export default function VlogsPage() {
           episode_number: nextEpNumber,
           title: title.trim(),
           published_at: new Date().toISOString().split('T')[0],
-          duration: duration.trim() || '14:30',
+          duration: duration.trim(),
           author_name: authorName.trim() || user?.name || 'Workshop Team',
           author_role: 'Master Technician & Founder',
           category,
@@ -175,14 +175,14 @@ export default function VlogsPage() {
             <Plus className="w-4 h-4" />
             Post Today’s Workshop Vlog / Photo
           </button>
-        ) : (
+        ) : !user ? (
           <Link
             href="/auth/login"
             className="px-5 py-2.5 bg-[#141413] hover:bg-neutral-800 text-white text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-2 whitespace-nowrap shrink-0"
           >
             Sign In to Post Vlog
           </Link>
-        )}
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 p-1 bg-neutral-200/70 rounded-lg w-fit">
