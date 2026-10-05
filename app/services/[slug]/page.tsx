@@ -8,6 +8,16 @@ import { formatPHP } from '@/lib/utils/format';
 import { ServiceBooking } from '@/types/database';
 import { Check, CheckCircle2, Clock } from 'lucide-react';
 
+function getManilaTomorrow(): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const base = `${parts.find(p => p.type === 'year')?.value}-${parts.find(p => p.type === 'month')?.value}-${parts.find(p => p.type === 'day')?.value}`;
+  const tomorrow = new Date(`${base}T00:00:00+08:00`);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(tomorrow);
+}
+
 export default function ServiceDetailPage({
   params,
 }: {
@@ -23,7 +33,7 @@ export default function ServiceDetailPage({
   const [vehicleDetails, setVehicleDetails] = useState(
     user?.garage_vehicle || '2021 Toyota Fortuner 2.8 LTD'
   );
-  const [preferredDate, setPreferredDate] = useState('2026-10-10');
+  const [preferredDate, setPreferredDate] = useState(getManilaTomorrow);
   const [preferredTime, setPreferredTime] = useState('09:00 AM');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -56,14 +66,14 @@ export default function ServiceDetailPage({
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     if (!user) { setErrors({ submit: 'Please sign in before booking a service.' }); return; }
     try {
-      const timeMatch = preferredTime.match(/^(\\d{1,2}):(\\d{2}) (AM|PM)$/);
+      const timeMatch = preferredTime.match(/^(\d{1,2}):(\d{2}) (AM|PM)$/);
       let h = 9, m = 0;
       if (timeMatch) { h = Number(timeMatch[1]); m = Number(timeMatch[2]); if (timeMatch[3] === 'PM' && h < 12) h += 12; if (timeMatch[3] === 'AM' && h === 12) h = 0; }
       const scheduled = new Date(preferredDate + 'T' + String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':00+08:00');
       const end = new Date(scheduled.getTime() + (service.duration_minutes || 60) * 60000);
       const booking = await createServiceBooking({ service_id: service.id, scheduled_start: scheduled.toISOString(), scheduled_end: end.toISOString(), notes: [vehicleDetails.trim(), notes.trim()].filter(Boolean).join(' — ') });
       setErrors({});
-      setConfirmedBooking({ ...booking, service_slug: service.slug, service_name: service.name, service_price: service.price, user_id: user.id, customer_name: customerName.trim(), customer_email: customerEmail.trim(), customer_phone: customerPhone.trim(), vehicle_details: vehicleDetails.trim(), preferred_date: preferredDate, preferred_time: preferredTime, notes: notes.trim() || undefined } as ServiceBooking);
+      setConfirmedBooking({ ...booking, booking_reference: booking.appointment_number, service_slug: service.slug, service_name: service.name, service_price: service.price, user_id: user.id, customer_name: customerName.trim(), customer_email: customerEmail.trim(), customer_phone: customerPhone.trim(), vehicle_details: vehicleDetails.trim(), preferred_date: preferredDate, preferred_time: preferredTime, notes: notes.trim() || undefined } as ServiceBooking);
     } catch (error) { setErrors({ submit: error instanceof Error ? error.message : 'Unable to book this service.' }); }
   };
 
