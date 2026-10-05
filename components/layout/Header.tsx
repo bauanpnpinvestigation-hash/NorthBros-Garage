@@ -142,7 +142,7 @@ export function Header() {
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#FAF9F6] border-b border-[#E5E5E0] px-4 pt-2 pb-5 space-y-3">
           <nav className="flex flex-col">
-            {NAV_ITEMS.map((i) => (
+            {navItems.map((i) => (
               <Link
                 key={i.href}
                 href={i.href}
