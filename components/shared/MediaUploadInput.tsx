@@ -1,17 +1,34 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Image from 'next/image';
-import { createClient } from '@/lib/supabase/client';
 import {
   getFacebookEmbedUrl,
   getYouTubeEmbedUrl,
+  getYouTubeId,
   isDirectVideoUrl,
   isFacebookVideoUrl,
-  getYouTubeId,
   resolveDisplayImageUrl,
 } from '@/lib/utils/media';
-import { Upload, Link as LinkIcon, Settings2, Check, Loader2 } from 'lucide-react';
+import { Upload, Link as LinkIcon, Loader2 } from 'lucide-react';
+
+type CloudinaryModule =
+  | 'branding'
+  | 'products'
+  | 'services'
+  | 'vehicles'
+  | 'brands'
+  | 'categories'
+  | 'avatars'
+  | 'daily-shop'
+  | 'other';
+
+type UploadBucket =
+  | 'product-images'
+  | 'service-images'
+  | 'daily-shop'
+  | 'vehicle-images'
+  | 'avatars';
 
 interface MediaUploadInputProps {
   label: string;
@@ -19,73 +36,19 @@ interface MediaUploadInputProps {
   onChange: (url: string) => void;
   placeholder?: string;
   acceptVideo?: boolean;
-  bucket?: 'product-images' | 'service-images' | 'daily-shop';
+  bucket?: UploadBucket;
+  cloudinaryFolder?: CloudinaryModule;
   helperText?: string;
   presets?: Array<{ label: string; url: string }>;
 }
 
-const CLOUDINARY_STORAGE_KEY = 'nb_cloudinary_config';
-
-function readCloudinaryConfig(): { cloudName: string; uploadPreset: string } {
-  if (typeof window === 'undefined') {
-    return {
-      cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '',
-      uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '',
-    };
-  }
-  try {
-    const raw = window.localStorage.getItem(CLOUDINARY_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        cloudName:
-          parsed.cloudName ||
-          process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ||
-          '',
-        uploadPreset:
-          parsed.uploadPreset ||
-          process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET ||
-          '',
-      };
-    }
-  } catch {
-    // ignore
-  }
-  return {
-    cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '',
-    uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '',
-  };
-}
-
-async function compressImageToDataUrl(file: File, maxWidth = 1280): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('Failed to read file'));
-    reader.onload = () => {
-      if (!file.type.startsWith('image/')) {
-        resolve(String(reader.result || ''));
-        return;
-      }
-      const img = new window.Image();
-      img.onerror = () => resolve(String(reader.result || ''));
-      img.onload = () => {
-        const scale = img.width > maxWidth ? maxWidth / img.width : 1;
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(String(reader.result || ''));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
-      };
-      img.src = String(reader.result);
-    };
-    reader.readAsDataURL(file);
-  });
-}
+const BUCKET_MODULE: Record<UploadBucket, CloudinaryModule> = {
+  'product-images': 'products',
+  'service-images': 'services',
+  'daily-shop': 'daily-shop',
+  'vehicle-images': 'vehicles',
+  avatars: 'avatars',
+};
 
 export function MediaUploadInput({
   label,
@@ -94,139 +57,54 @@ export function MediaUploadInput({
   placeholder = 'Paste Cloudinary, Facebook, YouTube, or direct image/video link…',
   acceptVideo = false,
   bucket = 'product-images',
+  cloudinaryFolder,
   helperText,
   presets,
 }: MediaUploadInputProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<string>('');
-  const [uploadError, setUploadError] = useState<string>('');
-  const [showCloudinaryConfig, setShowCloudinaryConfig] = useState(false);
-  const [cloudName, setCloudName] = useState('');
-  const [uploadPreset, setUploadPreset] = useState('');
-  const [configSaved, setConfigSaved] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [uploadError, setUploadError] = useState('');
 
-  useEffect(() => {
-    const cfg = readCloudinaryConfig();
-    setCloudName(cfg.cloudName);
-    setUploadPreset(cfg.uploadPreset);
-  }, []);
-
-  const handleSaveCloudinaryConfig = () => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(
-        CLOUDINARY_STORAGE_KEY,
-        JSON.stringify({
-          cloudName: cloudName.trim(),
-          uploadPreset: uploadPreset.trim(),
-        })
-      );
-      setConfigSaved(true);
-      setTimeout(() => setConfigSaved(false), 2500);
-    }
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     setIsUploading(true);
+    setUploadStatus('');
     setUploadError('');
-    setUploadStatus('Uploading media…');
 
     try {
-      const cfg = readCloudinaryConfig();
-      const activeCloudName = cloudName.trim() || cfg.cloudName;
-      const activePreset = uploadPreset.trim() || cfg.uploadPreset;
+      const isVideo = file.type.startsWith('video/');
+      const maxBytes = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
 
-      // 1. Try Cloudinary first (either direct unsigned upload or via /api/upload/cloudinary)
-      if (activeCloudName && activePreset) {
-        const resourceType = file.type.startsWith('video/') ? 'video' : 'image';
-        const form = new FormData();
-        form.append('file', file);
-        form.append('upload_preset', activePreset);
-        form.append('folder', 'northbros-garage');
-
-        const res = await fetch(
-          `https://api.cloudinary.com/v1_1/${encodeURIComponent(
-            activeCloudName
-          )}/${resourceType}/upload`,
-          {
-            method: 'POST',
-            body: form,
-          }
+      if (file.size > maxBytes) {
+        throw new Error(
+          isVideo
+            ? 'Video is too large. Maximum size is 100 MB.'
+            : 'Image is too large. Maximum size is 10 MB.'
         );
-        const data = await res.json();
-        if (res.ok && data?.secure_url) {
-          onChange(data.secure_url);
-          setUploadStatus('Uploaded to Cloudinary!');
-          setIsUploading(false);
-          if (fileInputRef.current) fileInputRef.current.value = '';
-          return;
-        }
       }
 
-      // Try server-side Cloudinary route in case server env vars are set
-      const serverForm = new FormData();
-      serverForm.append('file', file);
-      if (activeCloudName) serverForm.append('cloudName', activeCloudName);
-      if (activePreset) serverForm.append('uploadPreset', activePreset);
+      const form = new FormData();
+      form.append('file', file);
+      form.append('module', cloudinaryFolder || BUCKET_MODULE[bucket]);
 
-      const apiRes = await fetch('/api/upload/cloudinary', {
+      const response = await fetch('/api/upload/cloudinary', {
         method: 'POST',
-        body: serverForm,
+        body: form,
       });
-      const apiData = await apiRes.json();
-      if (apiRes.ok && apiData?.url) {
-        onChange(apiData.url);
-        setUploadStatus('Uploaded to Cloudinary!');
-        setIsUploading(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        return;
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.url) {
+        throw new Error(data?.error || 'Cloudinary upload failed.');
       }
 
-      // 2. Fallback: Upload to Supabase Storage bucket if available
-      const supabase = createClient();
-      if (supabase) {
-        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-        const safeName = `${Date.now()}-${Math.random()
-          .toString(36)
-          .slice(2, 8)}.${ext}`;
-        const storagePath = `uploads/${safeName}`;
-        const { error: storageErr } = await supabase.storage
-          .from(bucket)
-          .upload(storagePath, file, {
-            cacheControl: '3600',
-            upsert: true,
-          });
-
-        if (!storageErr) {
-          const {
-            data: { publicUrl },
-          } = supabase.storage.from(bucket).getPublicUrl(storagePath);
-          if (publicUrl) {
-            onChange(publicUrl);
-            setUploadStatus('Photo uploaded and saved!');
-            setIsUploading(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
-            return;
-          }
-        }
-      }
-
-      // 3. Final guaranteed fallback: compressed data URL for images so upload never fails
-      if (file.type.startsWith('image/')) {
-        const dataUrl = await compressImageToDataUrl(file);
-        onChange(dataUrl);
-        setUploadStatus('Photo uploaded and ready to save!');
-      } else {
-        setUploadError(
-          apiData?.error ||
-            'To upload large video files directly, please configure your Cloudinary Cloud Name & Upload Preset or paste a YouTube / Facebook / Cloudinary video link.'
-        );
-      }
-    } catch (err: any) {
-      setUploadError(err?.message || 'Unable to upload file.');
+      onChange(data.url);
+      setUploadStatus(`Uploaded to ${data.folder || 'Cloudinary'}.`);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'Unable to upload file.');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -240,72 +118,10 @@ export function MediaUploadInput({
 
   return (
     <div className="space-y-2.5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="block text-xs font-semibold text-[#141413]">
-          {label}
-        </label>
-        <button
-          type="button"
-          onClick={() => setShowCloudinaryConfig((v) => !v)}
-          className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6E6E68] hover:text-[#141413] cursor-pointer"
-        >
-          <Settings2 className="w-3.5 h-3.5" />
-          Cloudinary Upload Settings
-        </button>
+      <div className="flex items-center justify-between gap-2">
+        <label className="block text-xs font-semibold text-[#141413]">{label}</label>
       </div>
 
-      {showCloudinaryConfig && (
-        <div className="p-3.5 bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg space-y-3 text-xs">
-          <p className="text-[11px] text-[#52524E]">
-            Configure your Cloudinary account for 1-click direct uploads to
-            Cloudinary (Unsigned Upload Preset). Settings are saved in your
-            browser.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div>
-              <label className="block text-[11px] font-semibold text-[#141413] mb-1">
-                Cloudinary Cloud Name
-              </label>
-              <input
-                type="text"
-                value={cloudName}
-                onChange={(e) => setCloudName(e.target.value)}
-                placeholder="e.g. dxyz12345"
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-[#E5E5E0] rounded"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-[#141413] mb-1">
-                Unsigned Upload Preset
-              </label>
-              <input
-                type="text"
-                value={uploadPreset}
-                onChange={(e) => setUploadPreset(e.target.value)}
-                placeholder="e.g. ml_default or northbros_unsigned"
-                className="w-full px-2.5 py-1.5 text-xs bg-white border border-[#E5E5E0] rounded"
-              />
-            </div>
-          </div>
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={handleSaveCloudinaryConfig}
-              className="px-3 py-1.5 bg-[#141413] text-white text-[11px] font-semibold rounded inline-flex items-center gap-1 cursor-pointer"
-            >
-              {configSaved ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" /> Saved
-                </>
-              ) : (
-                'Save Cloudinary Config'
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Link Input + Upload File Button */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
           <LinkIcon className="w-3.5 h-3.5 text-[#6E6E68] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -370,19 +186,14 @@ export function MediaUploadInput({
         </div>
       )}
 
-      {helperText && (
-        <p className="text-[11px] text-[#6E6E68]">{helperText}</p>
-      )}
+      {helperText && <p className="text-[11px] text-[#6E6E68]">{helperText}</p>}
       {uploadStatus && (
-        <p className="text-[11px] text-emerald-700 font-medium">
-          ✓ {uploadStatus}
-        </p>
+        <p className="text-[11px] text-emerald-700 font-medium">✓ {uploadStatus}</p>
       )}
       {uploadError && (
         <p className="text-[11px] text-red-700 font-medium">{uploadError}</p>
       )}
 
-      {/* Live Media Preview */}
       {value && value.trim() && (
         <div className="pt-1">
           {ytEmbed ? (
