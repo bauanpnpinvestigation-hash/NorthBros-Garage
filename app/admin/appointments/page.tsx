@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import { useStore } from '@/components/shared/StoreProvider';
 import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { AdminShell } from '@/components/admin/AdminShell';
@@ -10,6 +11,19 @@ import { ServiceBookingStatus } from '@/types/database';
 export default function AdminAppointmentsPage() {
   const { serviceBookings, updateServiceBookingStatus } = useStore();
   const { getCurrency } = useAppSettings();
+  const [staff, setStaff] = useState<Array<{id:string;name:string}>>([]);
+  const [branches, setBranches] = useState<Array<{id:string;name:string}>>([]);
+  useEffect(() => {
+    const c = createClient();
+    if (!c) return;
+    void Promise.all([
+      c.from('staff_profiles').select('id,profiles(full_name)').eq('is_active', true),
+      c.from('branches').select('id,name').eq('is_active', true).order('name'),
+    ]).then(([staffResult, branchResult]) => {
+      if (!staffResult.error) setStaff((staffResult.data || []).map((row:any) => ({ id: row.id, name: row.profiles?.full_name || row.id })));
+      if (!branchResult.error) setBranches((branchResult.data || []) as Array<{id:string;name:string}>);
+    });
+  }, []);
 
   return (
     <AdminShell
@@ -53,6 +67,43 @@ export default function AdminAppointmentsPage() {
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
+                  <div>
+                    <label className="block text-[11px] text-[#6E6E68] mb-0.5">Branch</label>
+                    <select
+                      value={booking.branch_id || ''}
+                      onChange={async (e) => {
+                        const c = createClient();
+                        if (!c || !e.target.value) return;
+                        const result = await c.from('appointments').update({ branch_id: e.target.value }).eq('id', booking.id);
+                        if (result.error) {
+                          window.alert(result.error.message);
+                        } else {
+                          window.location.reload();
+                        }
+                      }}
+                      className="px-2.5 py-1 text-xs font-semibold bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
+                    >
+                      {booking.branch_id ? null : <option value="">Choose branch</option>}
+                      {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-[#6E6E68] mb-0.5">Technician</label>
+                    <select
+                      value={booking.assigned_staff_id || ''}
+                      onChange={async (e) => {
+                        const c = createClient();
+                        if (!c) return;
+                        const result = await c.from('appointments').update({ assigned_staff_id: e.target.value || null }).eq('id', booking.id);
+                        if (result.error) window.alert(result.error.message);
+                        else window.location.reload();
+                      }}
+                      className="px-2.5 py-1 text-xs font-semibold bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
+                    >
+                      <option value="">Unassigned</option>
+                      {staff.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+                    </select>
+                  </div>
                   <select
                     value={booking.status}
                     onChange={(e) =>
