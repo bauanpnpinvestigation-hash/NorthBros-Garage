@@ -69,11 +69,14 @@ export function PartForm({ initialPart }: PartFormProps) {
       return;
     }
 
-    const selectedBrand = brands.find((b) => b.slug === brandSlug) || brands[0];
-    const selectedCategory = categories.find((c) => c.slug === categorySlug) || categories[0];
+    const selectedBrand = brands.find((b) => b.slug === brandSlug);
+    const selectedCategory = categories.find((c) => c.slug === categorySlug);
+    if (!selectedBrand) errs.brand = 'Choose a manufacturer brand.';
+    if (!selectedCategory) errs.category = 'Choose a product category.';
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
 
     const payload = {
-      slug: initialPart?.slug || slugify(`${selectedBrand.name}-${name}-${sku}`),
+      slug: initialPart?.slug || slugify(`${selectedBrand?.name || name}-${name}-${sku}`),
       sku: sku.trim().toUpperCase(),
       name: name.trim(),
       brand_id: selectedBrand.id,
@@ -86,8 +89,8 @@ export function PartForm({ initialPart }: PartFormProps) {
       compare_at_price: compareAtPrice ? Number(compareAtPrice) : undefined,
       stock: parsedStock,
       status,
-      rating: initialPart?.rating || 4.9,
-      review_count: initialPart?.review_count || 18,
+      rating: initialPart?.rating || 0,
+      review_count: initialPart?.review_count || 0,
       is_featured: isFeatured,
       primary_image: primaryImage,
       gallery_images: [primaryImage],
@@ -133,9 +136,10 @@ export function PartForm({ initialPart }: PartFormProps) {
               onChange={(e) => setBrandSlug(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
             >
+              <option value="">Choose brand</option>
               {brands.map((b) => (
                 <option key={b.id} value={b.slug}>
-                  {b.name} ({b.country})
+                  {b.name}
                 </option>
               ))}
             </select>
@@ -150,12 +154,14 @@ export function PartForm({ initialPart }: PartFormProps) {
               onChange={(e) => setCategorySlug(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
             >
+              <option value="">Choose category</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.slug}>
                   {c.name}
                 </option>
               ))}
             </select>
+            {errors.category && <p className="text-xs text-red-700 mt-1">{errors.category}</p>}
           </div>
 
           <div>
