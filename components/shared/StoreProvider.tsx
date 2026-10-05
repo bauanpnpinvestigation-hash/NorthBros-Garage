@@ -316,7 +316,91 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
   const likeVlog=async(vlogId:string)=>{if(!user){showToast('Please sign in to like posts.','error');return;}const c=sb();if(!c)return;const r=await c.from('daily_post_likes').insert({post_id:vlogId,user_id:user.id});if(r.error&&r.code!=='23505')showToast(r.error.message,'error');};
   const addVlogComment=async(vlogId:string,_userName:string,text:string)=>{if(!user){showToast('Please sign in to comment.','error');return;}const c=sb();if(!c)return;const r=await c.from('daily_post_comments').insert({post_id:vlogId,user_id:user.id,content:text.trim()});if(r.error)showToast(r.error.message,'error');};
 
-  const value=useMemo(()=>({parts,brands,categories,services,serviceBookings,vlogs,favorites,cart,orders,user,isHydrated,refreshAuth,showToast,toggleFavorite,addToCart,updateCartQuantity,removeFromCart,clearCart,createOrder,createServiceBooking,login,register,logout,updateProfile,addPart,updatePart,deletePart,updatePartStatus,addService,updateServiceBookingStatus,updateOrderStatus,addBrand,addCategory,addVlog,likeVlog,addVlogComment}),[parts,brands,categories,services,serviceBookings,vlogs,favorites,cart,orders,user,isHydrated]);
-  return <StoreContext.Provider value={value}>{children}<div aria-live="polite" className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0">{toasts.map(t=><div key={t.id} className="pointer-events-auto flex items-center justify-between gap-3 bg-[#141413] text-white px-4 py-3 rounded-lg shadow-lg border border-neutral-800 text-sm"><div className="flex items-center gap-2.5">{t.type==='error'?<AlertCircle className="w-4 h-4 text-red-400 shrink-0"/>:<CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0"}/><span>{t.text}</span></div><button type="button" onClick={()=>setToasts(p=>p.filter(x=>x.id!==t.id))} aria-label="Close notification"><X className="w-4 h-4"/></button></div>)}</div></StoreContext.Provider>;
+  const value = useMemo(
+    () => ({
+      parts,
+      brands,
+      categories,
+      services,
+      serviceBookings,
+      vlogs,
+      favorites,
+      cart,
+      orders,
+      user,
+      isHydrated,
+      refreshAuth,
+      showToast,
+      toggleFavorite,
+      addToCart,
+      updateCartQuantity,
+      removeFromCart,
+      clearCart,
+      createOrder,
+      createServiceBooking,
+      login,
+      register,
+      logout,
+      updateProfile,
+      addPart,
+      updatePart,
+      deletePart,
+      updatePartStatus,
+      addService,
+      updateServiceBookingStatus,
+      updateOrderStatus,
+      addBrand,
+      addCategory,
+      addVlog,
+      likeVlog,
+      addVlogComment,
+    }),
+    [
+      parts,
+      brands,
+      categories,
+      services,
+      serviceBookings,
+      vlogs,
+      favorites,
+      cart,
+      orders,
+      user,
+      isHydrated,
+    ],
+  );
+
+  return (
+    <StoreContext.Provider value={value}>
+      {children}
+      <div
+        aria-live="polite"
+        className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"
+      >
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className="pointer-events-auto flex items-center justify-between gap-3 bg-[#141413] text-white px-4 py-3 rounded-lg shadow-lg border border-neutral-800 text-sm"
+          >
+            <div className="flex items-center gap-2.5">
+              {t.type === 'error' ? (
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              )}
+              <span>{t.text}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setToasts((p) => p.filter((x) => x.id !== t.id))}
+              aria-label="Close notification"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </StoreContext.Provider>
+  );
 }
 export function useStore(){const c=useContext(StoreContext);if(!c)throw new Error('useStore must be used within a StoreProvider');return c;}
