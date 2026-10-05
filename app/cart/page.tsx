@@ -5,12 +5,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useStore } from '@/components/shared/StoreProvider';
 import { useAppSettings } from '@/components/shared/AppSettingsProvider';
-import { formatPHP } from '@/lib/utils/format';
+import { formatCurrency } from '@/lib/utils/format';
 import { Minus, Plus, Trash2, ArrowRight } from 'lucide-react';
 
 export default function CartPage() {
   const { cart, updateCartQuantity, removeFromCart } = useStore();
-  const { getString } = useAppSettings();
+  const { getString, getCurrency } = useAppSettings();
   const subtotal = cart.reduce(
     (sum, item) => sum + item.unit_price * item.quantity,
     0
@@ -81,7 +81,7 @@ export default function CartPage() {
                       {item.name}
                     </Link>
                     <p className="text-xs text-[#52524E] font-mono tabular-nums">
-                      Unit Price: {formatPHP(item.unit_price)}
+                      Unit Price: {formatCurrency(item.unit_price, getCurrency())}
                     </p>
                   </div>
                 </div>
@@ -117,7 +117,7 @@ export default function CartPage() {
                   {/* Item Subtotal */}
                   <div className="text-right min-w-[95px]">
                     <p className="text-sm font-bold text-[#141413] font-mono tabular-nums">
-                      {formatPHP(item.unit_price * item.quantity)}
+                      {formatCurrency(item.unit_price * item.quantity, getCurrency())}
                     </p>
                     <button
                       type="button"
@@ -143,19 +143,19 @@ export default function CartPage() {
               <div className="flex justify-between text-[#52524E]">
                 <span>Parts Subtotal</span>
                 <span className="font-mono font-semibold text-[#141413] tabular-nums">
-                  {formatPHP(subtotal)}
+                  {formatCurrency(subtotal, getCurrency())}
                 </span>
               </div>
               <div className="flex justify-between text-[#52524E]">
                 <span>Shipping</span>
                 <span className="font-mono font-semibold text-[#141413] tabular-nums">
-                  {shippingFee === 0 ? 'FREE' : formatPHP(shippingFee)}
+                  {shippingFee === 0 ? 'FREE' : formatCurrency(shippingFee, getCurrency())}
                 </span>
               </div>
               <div className="pt-3 border-t border-[#E5E5E0] flex items-baseline justify-between">
                 <span className="text-sm font-bold text-[#141413]">Total</span>
                 <span className="text-2xl font-bold text-[#141413] font-mono tabular-nums">
-                  {formatPHP(total)}
+                  {formatCurrency(total, getCurrency())}
                 </span>
               </div>
             </div>
