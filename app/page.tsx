@@ -56,20 +56,6 @@ export default function HomePage() {
               </Link>
               <span>·</span>
               <Link
-                href="/categories/brakes"
-                className="text-white underline underline-offset-4 hover:text-neutral-300"
-              >
-                Brembo Brake Kits
-              </Link>
-              <span>·</span>
-              <Link
-                href="/categories/engine-filters"
-                className="text-white underline underline-offset-4 hover:text-neutral-300"
-              >
-                Motul & Denso PMS Bundles
-              </Link>
-              <span>·</span>
-              <Link
                 href="/vlogs"
                 className="text-white underline underline-offset-4 hover:text-neutral-300"
               >
