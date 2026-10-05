@@ -78,7 +78,10 @@ export interface AutomotiveService {
   name: string;
   category: string;
   price: number;
+  price_type?: 'fixed' | 'starting_at' | 'quote';
   duration_minutes: number;
+  is_bookable?: boolean;
+  requires_inspection?: boolean;
   duration_label: string;
   availability: ServiceAvailability;
   description: string;
