@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useStore } from '@/components/shared/StoreProvider';
@@ -9,25 +9,13 @@ import { Minus, Plus, Trash2, ArrowRight } from 'lucide-react';
 
 export default function CartPage() {
   const { cart, updateCartQuantity, removeFromCart } = useStore();
-  const [promoCode, setPromoCode] = useState('');
-  const [appliedDiscountPct, setAppliedDiscountPct] = useState(0);
-
   const subtotal = cart.reduce(
     (sum, item) => sum + item.unit_price * item.quantity,
     0
   );
   const shippingFee = subtotal === 0 || subtotal >= 5000 ? 0 : 250;
-  const discountAmount = Math.round(subtotal * (appliedDiscountPct / 100));
-  const total = Math.max(0, subtotal + shippingFee - discountAmount);
+  const total = subtotal + shippingFee;
 
-  const handleApplyPromo = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (promoCode.trim().toUpperCase() === 'APEX10') {
-      setAppliedDiscountPct(10);
-    } else {
-      setAppliedDiscountPct(0);
-    }
-  };
 
   return (
     <div className="max-w-[1360px] mx-auto px-4 sm:px-8 py-12 space-y-10">
@@ -147,22 +135,6 @@ export default function CartPage() {
               Order Summary
             </h2>
 
-            <form onSubmit={handleApplyPromo} className="flex gap-2">
-              <input
-                type="text"
-                value={promoCode}
-                onChange={(e) => setPromoCode(e.target.value)}
-                placeholder="Voucher code (Try APEX10)"
-                className="flex-1 px-3 py-2 text-xs bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg font-mono"
-              />
-              <button
-                type="submit"
-                className="px-3.5 py-2 bg-[#FAF9F6] border border-[#E5E5E0] text-xs font-semibold text-[#141413] rounded-lg hover:bg-neutral-200/70 cursor-pointer"
-              >
-                Apply
-              </button>
-            </form>
-
             <div className="space-y-2.5 text-xs">
               <div className="flex justify-between text-[#52524E]">
                 <span>Parts Subtotal</span>
@@ -176,14 +148,6 @@ export default function CartPage() {
                   {shippingFee === 0 ? 'FREE' : formatPHP(shippingFee)}
                 </span>
               </div>
-              {discountAmount > 0 && (
-                <div className="flex justify-between text-emerald-700 font-medium">
-                  <span>Promo Discount (APEX10 · 10%)</span>
-                  <span className="font-mono tabular-nums">
-                    -{formatPHP(discountAmount)}
-                  </span>
-                </div>
-              )}
               <div className="pt-3 border-t border-[#E5E5E0] flex items-baseline justify-between">
                 <span className="text-sm font-bold text-[#141413]">Total</span>
                 <span className="text-2xl font-bold text-[#141413] font-mono tabular-nums">
