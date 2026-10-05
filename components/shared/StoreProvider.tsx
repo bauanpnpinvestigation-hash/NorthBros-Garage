@@ -1518,6 +1518,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         description: srv.description,
         short_description: srv.description,
         price: srv.price ?? 0,
+        price_type: srv.price_type || 'fixed',
         duration_minutes: srv.duration_minutes || null,
         is_bookable: srv.is_bookable !== false,
         requires_inspection: srv.requires_inspection === true,
@@ -1559,6 +1560,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (updates.name !== undefined) patch.name = updates.name;
     if (updates.slug !== undefined) patch.slug = updates.slug;
     if (updates.price !== undefined) patch.price = updates.price;
+    if (updates.price_type !== undefined) patch.price_type = updates.price_type;
+    if (updates.is_bookable !== undefined) patch.is_bookable = updates.is_bookable;
+    if (updates.requires_inspection !== undefined) patch.requires_inspection = updates.requires_inspection;
     if (updates.duration_minutes !== undefined)
       patch.duration_minutes = updates.duration_minutes || null;
     if (updates.category !== undefined) {
