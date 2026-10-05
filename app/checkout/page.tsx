@@ -162,6 +162,12 @@ export default function CheckoutPage() {
                 {confirmedOrder.payment_method}
               </span>
             </div>
+            {confirmedOrder.discount_amount > 0 && (
+              <div className="flex justify-between text-[#15803D]">
+                <span>Promotion Discount</span>
+                <span className="font-mono">-{formatPHP(confirmedOrder.discount_amount)}</span>
+              </div>
+            )}
             <div className="pt-2 border-t border-[#E5E5E0] flex justify-between text-sm font-bold text-[#141413]">
               <span>Total Order Amount</span>
               <span className="font-mono tabular-nums">
