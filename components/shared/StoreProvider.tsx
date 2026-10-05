@@ -378,9 +378,9 @@ function mapOrder(row: any): Order {
   const ps: any = {
     pending: 'Pending Verification',
     paid: 'Paid',
-    failed: 'Pending Verification',
-    refunded: 'Pending Verification',
-    partially_refunded: 'Pending Verification',
+    failed: 'Failed',
+    refunded: 'Refunded',
+    partially_refunded: 'Partially Refunded',
   };
   return {
     id: row.id,
@@ -1764,7 +1764,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const pm: any = {
         Paid: 'paid',
         'Pending Verification': 'pending',
-        'COD Pending': 'pending',
+        Failed: 'failed',
+        Refunded: 'refunded',
+        'Partially Refunded': 'partially_refunded',
       };
       const pr = await c
         .from('payments')
