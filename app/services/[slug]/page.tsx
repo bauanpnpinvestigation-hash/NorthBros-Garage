@@ -4,8 +4,9 @@ import React, { use, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useStore } from '@/components/shared/StoreProvider';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { createClient } from '@/lib/supabase/client';
-import { formatPHP } from '@/lib/utils/format';
+import { formatCurrency } from '@/lib/utils/format';
 import { ServiceBooking } from '@/types/database';
 import { Check, CheckCircle2, Clock } from 'lucide-react';
 
@@ -26,6 +27,7 @@ export default function ServiceDetailPage({
 }) {
   const { slug } = use(params);
   const { services, createServiceBooking, customerVehicles, user } = useStore();
+  const { getCurrency } = useAppSettings();
   const service = services.find((s) => s.slug === slug);
 
   const [customerName, setCustomerName] = useState(user?.name || '');
@@ -161,7 +163,7 @@ export default function ServiceDetailPage({
             <div className="pt-2 border-t border-[#E5E5E0] flex justify-between text-sm font-bold text-[#141413]">
               <span>Service Package Price</span>
               <span className="font-mono tabular-nums">
-                {formatPHP(confirmedBooking.service_price)}
+                {formatCurrency(confirmedBooking.service_price, getCurrency())}
               </span>
             </div>
           </div>
@@ -275,7 +277,7 @@ export default function ServiceDetailPage({
             <div className="space-y-1 border-b border-[#E5E5E0] pb-4">
               <p className="text-xs text-[#6E6E68]">Service Package Rate</p>
               <p className="text-2xl sm:text-3xl font-bold text-[#141413] font-mono tabular-nums">
-                {formatPHP(service.price)}
+                {formatCurrency(service.price, getCurrency())}
               </p>
               <p className="text-xs text-[#6E6E68]">
                 Includes labor, diagnostic scan & workshop consumables
