@@ -1,9 +1,18 @@
+export function formatCurrency(amount: number, currency = 'PHP'): string {
+  const code = /^[A-Z]{3}$/i.test(currency.trim()) ? currency.trim().toUpperCase() : 'PHP';
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: code,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return code + ' ' + Number(amount || 0).toLocaleString();
+  }
+}
+
 export function formatPHP(amount: number): string {
-  return new Intl.NumberFormat('en-PH', {
-    style: 'currency',
-    currency: 'PHP',
-    maximumFractionDigits: 0,
-  }).format(amount);
+  return formatCurrency(amount, 'PHP');
 }
 
 export function formatNumber(num: number): string {
