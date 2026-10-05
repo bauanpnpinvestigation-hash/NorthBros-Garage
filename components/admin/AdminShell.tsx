@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useStore } from '@/components/shared/StoreProvider';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 
 const ADMIN_LINKS = [
   { href: '/admin', label: 'Overview' },
@@ -16,6 +17,7 @@ const ADMIN_LINKS = [
   { href: '/admin/brands', label: 'Brands' },
   { href: '/admin/categories', label: 'Categories' },
   { href: '/vlogs', label: 'Daily Vlogs' },
+  { href: '/admin/settings', label: 'Settings' },
 ];
 
 export function AdminShell({
@@ -32,6 +34,8 @@ export function AdminShell({
   const pathname = usePathname();
   const router = useRouter();
   const { user, isHydrated, refreshAuth, logout } = useStore();
+  const { getString } = useAppSettings();
+  const siteName = getString('branding.site_name', 'NorthBros Garage');
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
@@ -82,7 +86,7 @@ export function AdminShell({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         <aside className="lg:col-span-3 bg-white border border-[#E5E5E0] rounded-xl p-5 space-y-4 lg:sticky lg:top-24">
           <div className="pb-3 border-b border-[#E5E5E0]">
-            <p className="text-[11px] text-[#6E6E68]">NorthBros Garage</p>
+            <p className="text-[11px] text-[#6E6E68]">{siteName}</p>
             <p className="font-display text-base font-bold">Parts & Workshop Admin</p>
           </div>
           <nav className="flex flex-row lg:flex-col gap-1 overflow-x-auto pb-1 lg:pb-0">
