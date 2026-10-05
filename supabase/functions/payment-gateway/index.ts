@@ -1,0 +1,36 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+const corsHeaders = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS"};
+const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...corsHeaders,"Content-Type":"application/json"}});
+function minorUnits(amount:number,digits=2){return Math.round(amount*Math.pow(10,digits));}
+Deno.serve(async(req)=>{
+ if(req.method==="OPTIONS")return new Response("ok",{headers:corsHeaders});
+ if(req.method!=="POST")return json({error:"Method not allowed."},405);
+ const auth=req.headers.get("Authorization"); if(!auth?.startsWith("Bearer "))return json({error:"Authentication required."},401);
+ const token=auth.slice(7); const {data:authData,error:authError}=await supabase.auth.getUser(token); if(authError||!authData.user)return json({error:"Invalid authentication."},401);
+ const body=await req.json().catch(()=>null); const paymentId=body?.payment_id; const orderId=body?.order_id; if(!paymentId||!orderId)return json({error:"payment_id and order_id are required."},400);
+ const {data:payment,error:paymentError}=await supabase.from("payments").select("id,order_id,amount,currency,status,method,payment_method_id").eq("id",paymentId).eq("order_id",orderId).single();
+ if(paymentError||!payment)return json({error:"Payment not found."},404);
+ const {data:order}=await supabase.from("orders").select("id,order_number,customer_id").eq("id",orderId).single();
+ if(!order||order.customer_id!==authData.user.id)return json({error:"Not authorized for this payment."},403);
+ if(payment.status==="paid")return json({error:"Payment is already complete."},409);
+ const {data:method}=await supabase.from("payment_methods").select("code,name,public_config").eq("id",payment.payment_method_id).eq("is_enabled",true).single();
+ if(!method)return json({error:"Payment method is unavailable."},400);
+ const config=(method.public_config??{}) as Record<string,unknown>; const provider=String(config.provider??"manual").toLowerCase(); const settlement=String(config.settlement_mode??"online").toLowerCase();
+ if(settlement==="offline")return json({ok:true,provider:"manual",status:"pending",checkout_url:null});
+ if(provider!=="stripe")return json({error:"This online payment method has no configured payment provider."},422);
+ const stripeKey=Deno.env.get("STRIPE_SECRET_KEY"); if(!stripeKey)return json({error:"Stripe is not configured on the server."},503);
+ const appBaseUrl=Deno.env.get("APP_BASE_URL")??req.headers.get("origin")??""; if(!appBaseUrl)return json({error:"APP_BASE_URL is not configured."},503);
+ const minorDigits=Number(config.minor_unit??2); const params=new URLSearchParams();
+ params.set("mode","payment"); const paymentTypes=Array.isArray(config.payment_method_types)?config.payment_method_types.map(String).filter(Boolean):[]; if(paymentTypes.length){ for(const t of paymentTypes) params.append("payment_method_types[]",t); } params.set("success_url",appBaseUrl+"/checkout/success?session_id={CHECKOUT_SESSION_ID}"); params.set("cancel_url",appBaseUrl+"/checkout?payment=cancelled");
+ params.set("client_reference_id",orderId); params.set("metadata[order_id]",orderId); params.set("metadata[payment_id]",paymentId); params.set("line_items[0][quantity]","1");
+ params.set("line_items[0][price_data][currency]",String(payment.currency).toLowerCase()); params.set("line_items[0][price_data][unit_amount]",String(minorUnits(Number(payment.amount),minorDigits)));
+ params.set("line_items[0][price_data][product_data][name]","Order #"+order.order_number);
+ const stripeResponse=await fetch("https://api.stripe.com/v1/checkout/sessions",{method:"POST",headers:{Authorization:"Bearer "+stripeKey,"Content-Type":"application/x-www-form-urlencoded","Idempotency-Key":"checkout-"+paymentId},body:params});
+ const stripe=await stripeResponse.json(); if(!stripeResponse.ok)return json({error:stripe?.error?.message??"Unable to create payment session."},502);
+ await supabase.from("payments").update({provider:"stripe",provider_checkout_id:stripe.id,checkout_url:stripe.url}).eq("id",paymentId);
+ await supabase.from("checkout_sessions").update({provider:"stripe",provider_session_id:stripe.id,provider_checkout_url:stripe.url}).eq("payment_id",paymentId);
+ return json({ok:true,provider:"stripe",status:"pending",provider_session_id:stripe.id,checkout_url:stripe.url});
+});
