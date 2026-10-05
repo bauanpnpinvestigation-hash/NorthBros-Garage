@@ -13,10 +13,10 @@ export async function generateMetadata({
   const { slug } = await params;
   const category = await getCategoryBySlug(slug);
   if (!category) {
-    return { title: 'Part Category | Apex Auto Parts PH' };
+    return { title: 'Part Category' };
   }
   return {
-    title: `${category.name} | Apex Auto Parts PH`,
+    title: `${category.name}`,
     description: category.description,
   };
 }
