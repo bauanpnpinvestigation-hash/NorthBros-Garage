@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useStore } from '@/components/shared/StoreProvider';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { PartCard } from '@/components/parts/PartCard';
 import { ServiceCard } from '@/components/services/ServiceCard';
 import { formatDate, formatNumber, formatPHP } from '@/lib/utils/format';
@@ -11,6 +12,11 @@ import { Play, ArrowRight } from 'lucide-react';
 
 export function HomeCatalogSections() {
   const { parts, categories, services, vlogs } = useStore();
+  const { getString } = useAppSettings();
+  const homeEyebrow = getString('homepage.eyebrow', 'Automotive Parts & Services');
+  const homeTitle = getString('homepage.title', 'Parts, service, and workshop care in one place.');
+  const homeDescription = getString('homepage.description', 'Browse the catalog, choose a service, and manage your vehicle needs from one storefront.');
+  const siteName = getString('branding.site_name', '');
   const [activeCategory, setActiveCategory] = useState<string>('all');
 
   const filteredParts =
@@ -28,10 +34,10 @@ export function HomeCatalogSections() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-4 border-b border-[#E5E5E0]">
           <div className="space-y-2">
             <p className="text-xs font-medium text-[#6E6E68]">
-              Genuine OEM & Performance Replacement Parts · Ready to Ship
+              {homeEyebrow} · Catalog & Operations
             </p>
             <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#141413] tracking-tight">
-              Featured Car Parts & Maintenance Kits
+              {homeTitle}
             </h2>
           </div>
 
@@ -77,10 +83,10 @@ export function HomeCatalogSections() {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-[#E5E5E0]">
           <div className="space-y-2">
             <p className="text-xs font-medium text-[#6E6E68]">
-              BGC Service Bays · Online Appointment Booking
+              {siteName ? siteName + ' · ' : ''}Online Appointment Booking
             </p>
             <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#141413] tracking-tight">
-              Professional Automotive Services
+              {homeDescription}
             </h2>
           </div>
           <Link
@@ -246,16 +252,14 @@ export function HomeCatalogSections() {
                   Buy Parts Online + Book Installation in One Place
                 </p>
                 <p className="text-sm leading-relaxed text-neutral-200">
-                  Order genuine Brembo, Motul, Denso, Bosch, Bilstein, and NGK
-                  parts for delivery anywhere in the Philippines, or book a
-                  service bay at our BGC workshop for precision installation.
+                  Use the catalog and booking system together, with products, services, locations, and payment options configured by the administrator.
                 </p>
                 <div className="pt-2 flex flex-wrap items-center gap-4 text-xs font-mono tabular-nums text-neutral-300 border-t border-neutral-800">
-                  <span>100% Genuine OEM Parts</span>
+                  <span>Configured Product Catalog</span>
                   <span>·</span>
-                  <span>GCash / Maya / QR Ph</span>
+                  <span>Configured Payment Methods</span>
                   <span>·</span>
-                  <span>Same-Day Dispatch</span>
+                  <span>Configured Fulfillment</span>
                 </div>
               </div>
             </div>
