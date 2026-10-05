@@ -13,10 +13,10 @@ export async function generateMetadata({
   const { slug } = await params;
   const brand = await getBrandBySlug(slug);
   if (!brand) {
-    return { title: 'Brand Catalog | Apex Auto Parts PH' };
+    return { title: 'Brand Catalog' };
   }
   return {
-    title: `${brand.name} Car Parts & Products | Apex Auto Parts PH`,
+    title: `${brand.name} Car Parts & Products`,
     description: brand.description,
   };
 }
@@ -38,7 +38,7 @@ export default async function BrandDetailPage({ params }: BrandSlugPageProps) {
         heading={brand ? `${brand.name} Automotive Parts` : 'Brand Parts'}
         subheading={
           brand
-            ? `${brand.description} (${brand.warranty_policy})`
+            ? `${brand.description || 'Explore products from this manufacturer.'`
             : 'Explore genuine automotive parts by brand.'
         }
       />
