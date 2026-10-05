@@ -1,14 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useStore } from '@/components/shared/StoreProvider';
 import { formatPHP } from '@/lib/utils/format';
-import { Order, PaymentMethodType } from '@/types/database';
+import { Order } from '@/types/database';
+import { createClient } from '@/lib/supabase/client';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { CheckCircle2, ShieldCheck } from 'lucide-react';
 
 export default function CheckoutPage() {
   const { cart, createOrder, user } = useStore();
+  const { getString } = useAppSettings();
+  const [paymentMethods, setPaymentMethods] = useState<Array<{code:string;name:string;description:string|null}>>([]);
+  const [paymentLoading, setPaymentLoading] = useState(true);
 
   const [customerName, setCustomerName] = useState(user?.name || '');
   const [customerEmail, setCustomerEmail] = useState(user?.email || '');
@@ -22,20 +27,36 @@ export default function CheckoutPage() {
   const [shippingPostalCode, setShippingPostalCode] = useState(
     user?.postal_code || ''
   );
-  const [paymentMethod, setPaymentMethod] =
-    useState<PaymentMethodType>('GCash');
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkoutIdempotencyKey] = useState(() => crypto.randomUUID());
 
+  useEffect(() => {
+    const c = createClient();
+    if (!c) { setPaymentLoading(false); return; }
+    void c.from('payment_methods').select('code,name,description').eq('is_enabled', true).order('sort_order').then(({ data, error }) => {
+      if (error) setErrors((current) => ({ ...current, submit: error.message }));
+      else {
+        const methods = (data || []) as Array<{code:string;name:string;description:string|null}>;
+        setPaymentMethods(methods);
+        if (methods[0]) setPaymentMethod(methods[0].code);
+      }
+      setPaymentLoading(false);
+    });
+  }, []);
+
   const subtotal = cart.reduce(
     (sum, item) => sum + item.unit_price * item.quantity,
     0
   );
-  const shippingFee = subtotal === 0 || subtotal >= 5000 ? 0 : 250;
+  const shippingThreshold = Number(getString('store.free_shipping_threshold', '5000')) || 5000;
+  const configuredShippingFee = Number(getString('store.shipping_fee', '250')) || 0;
+  const shippingFee = subtotal === 0 || subtotal >= shippingThreshold ? 0 : configuredShippingFee;
   const totalAmount = subtotal + shippingFee;
+  const selectedPayment = paymentMethods.find((method) => method.code === paymentMethod);
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +78,10 @@ export default function CheckoutPage() {
     setErrors({});
     setIsSubmitting(true);
     try {
-      const code = paymentMethod === 'GCash' ? 'gcash' : paymentMethod === 'Maya' ? 'maya' : 'gotyme';
+      if (!paymentMethod || !selectedPayment) {
+        setErrors({ submit: 'Choose an available payment method.' });
+        return;
+      }
       const result = await createOrder({
         recipient_name: customerName.trim(), phone: customerPhone.trim(), address_line: shippingAddress.trim(),
         city: shippingCity.trim(), postal_code: shippingPostalCode.trim(), payment_method_code: code,
@@ -73,7 +97,7 @@ export default function CheckoutPage() {
         shipping_address: shippingAddress.trim(),
         shipping_city: shippingCity.trim(),
         shipping_postal_code: shippingPostalCode.trim(),
-        payment_method: paymentMethod,
+        payment_method: selectedPayment.name,
         payment_status: 'Pending Verification',
         fulfillment_status: 'Processing',
         items: cart.map((c) => ({
@@ -321,18 +345,9 @@ export default function CheckoutPage() {
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {(['GCash','Maya','GoTyme / QR Ph'] as const).map((method) => (
-              <button
-                key={method}
-                type="button"
-                onClick={() => setPaymentMethod(method)}
-                className={`p-3.5 rounded-lg border text-left text-xs font-semibold transition-colors cursor-pointer ${
-                  paymentMethod === method
-                    ? 'bg-[#141413] text-white border-[#141413]'
-                    : 'bg-[#FAF9F6] text-[#141413] border-[#E5E5E0] hover:bg-neutral-200/70'
-                }`}
-              >
-                {method}
+            {paymentLoading ? <p className="text-xs text-[#6E6E68]">Loading payment methods…</p> : paymentMethods.length === 0 ? <p className="text-xs text-red-700">No payment methods are currently enabled.</p> : paymentMethods.map((method) => (
+              <button key={method.code} type="button" onClick={() => setPaymentMethod(method.code)} className={`p-3.5 rounded-lg border text-left text-xs font-semibold transition-colors cursor-pointer ${paymentMethod === method.code ? 'bg-[#141413] text-white border-[#141413]' : 'bg-[#FAF9F6] text-[#141413] border-[#E5E5E0] hover:bg-neutral-200/70'}`}>
+                <span>{method.name}</span>{method.description && <span className={`block mt-1 text-[11px] font-normal ${paymentMethod === method.code ? 'text-neutral-300' : 'text-[#6E6E68]'}`}>{method.description}</span>}
               </button>
             ))}
           </div>
@@ -403,16 +418,16 @@ export default function CheckoutPage() {
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || paymentLoading || paymentMethods.length === 0}
             className="w-full py-3 px-5 bg-[#141413] hover:bg-neutral-800 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer"
           >
-            {isSubmitting ? 'Processing Order…' : `Place Order (${paymentMethod})`}
+            {isSubmitting ? 'Processing Order…' : `Place Order${selectedPayment ? ` (${selectedPayment.name})` : ''}`}
           </button>
 
           <div className="flex items-center gap-2 text-[11px] text-[#6E6E68]">
             <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
             <span>
-              Your order is secured in NorthBros Garage and will remain pending until payment is confirmed.
+              Your order is securely recorded and will remain pending until payment is confirmed.
             </span>
           </div>
         </aside>
