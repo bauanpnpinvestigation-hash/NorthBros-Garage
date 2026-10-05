@@ -24,7 +24,7 @@ interface PartDetailClientProps {
 
 export function PartDetailClient({ slug, initialPart }: PartDetailClientProps) {
   const router = useRouter();
-  const { parts, vlogs, favorites, toggleFavorite, addToCart } = useStore();
+  const { parts, vlogs, favorites, toggleFavorite, addToCart, user } = useStore();
   const part = parts.find((p) => p.slug === slug) || initialPart;
 
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
@@ -62,9 +62,13 @@ export function PartDetailClient({ slug, initialPart }: PartDetailClientProps) {
       v.slug === part.vlog_episode_slug || v.featured_part_slug === part.slug
   );
 
-  const handleBuyNow = () => {
-    addToCart(part, quantity);
-    router.push('/checkout');
+  const handleBuyNow = async () => {
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
+    const added = await addToCart(part, quantity);
+    if (added) router.push('/checkout');
   };
 
   return (
