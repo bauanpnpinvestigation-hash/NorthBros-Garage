@@ -4,11 +4,12 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useStore } from '@/components/shared/StoreProvider';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { MediaUploadInput } from '@/components/shared/MediaUploadInput';
 import {
   formatDate,
   formatNumber,
-  formatPHP,
+  formatCurrency,
   slugify,
 } from '@/lib/utils/format';
 import {
@@ -22,6 +23,7 @@ import { VlogPost } from '@/types/database';
 import { Play, Plus, X, ThumbsUp, Edit3, Trash2 } from 'lucide-react';
 
 export default function VlogsPage() {
+  const { getCurrency } = useAppSettings();
   const { vlogs, parts, addVlog, updateVlog, deleteVlog, user } = useStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showPublishModal, setShowPublishModal] = useState(false);
@@ -325,7 +327,7 @@ export default function VlogsPage() {
                     </Link>{' '}
                     {vlog.featured_part_price && (
                       <span className="font-mono tabular-nums">
-                        ({formatPHP(vlog.featured_part_price)})
+                        ({formatCurrency(vlog.featured_part_price, getCurrency())})
                       </span>
                     )}
                   </div>
@@ -482,7 +484,7 @@ export default function VlogsPage() {
                     <option value="">None</option>
                     {parts.map((p) => (
                       <option key={p.id} value={p.slug}>
-                        {p.name} ({p.sku} — {formatPHP(p.price)})
+                        {p.name} ({p.sku} — {formatCurrency(p.price, getCurrency())})
                       </option>
                     ))}
                   </select>
