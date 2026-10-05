@@ -391,7 +391,7 @@ export async function getVlogs(): Promise<VlogPost[]> {
   const { data, error } = await s
     .from('daily_posts')
     .select(
-      '*,daily_post_media(storage_path,thumbnail_path,media_type,sort_order),daily_post_likes(id),daily_post_comments(id,content,created_at,profiles(full_name))'
+      '*,profiles(full_name),daily_post_media(storage_path,thumbnail_path,media_type,sort_order),daily_post_likes(id),daily_post_comments(id,content,created_at,profiles(full_name))'
     )
     .eq('is_published', true)
     .order('published_at', { ascending: false });
@@ -423,12 +423,12 @@ export async function getVlogs(): Promise<VlogPost[]> {
       id: x.id,
       slug: x.id,
       episode_number: data.length - i,
-      title: x.title || 'NorthBros Garage Workshop Update',
+      title: x.title || '',
       published_at: x.published_at || x.created_at,
-      duration: '14:30',
-      author_name: 'NorthBros Garage',
-      author_role: 'Workshop',
-      category: 'Service Bay Vlog',
+      duration: '',
+      author_name: x.profiles?.full_name || '',
+      author_role: '',
+      category: String(x.post_type || ''),
       summary: x.caption || '',
       content: x.caption ? [x.caption] : [],
       thumbnail_url: resolveDisplayImageUrl(
