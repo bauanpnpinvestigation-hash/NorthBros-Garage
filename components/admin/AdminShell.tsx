@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useStore } from '@/components/shared/StoreProvider';
 import { useAppSettings } from '@/components/shared/AppSettingsProvider';
+import { isStaffRole } from '@/lib/auth/role';
 
 const ADMIN_LINKS = [
   { href: '/admin', label: 'Overview' },
@@ -49,7 +50,7 @@ export function AdminShell({
     if (!isHydrated) return;
     if (user) {
       setAuthChecked(true);
-      if (user.role !== 'admin') {
+      if (!isStaffRole(user.role)) {
         router.replace('/account');
       }
       return;
@@ -67,7 +68,7 @@ export function AdminShell({
     if (isHydrated && authChecked) {
       if (!user) {
         router.replace('/auth/login');
-      } else if (user.role !== 'admin') {
+      } else if (!isStaffRole(user.role)) {
         router.replace('/account');
       }
     }
@@ -76,12 +77,12 @@ export function AdminShell({
   if (!isHydrated || (!user && !authChecked)) {
     return (
       <div className="max-w-[1360px] mx-auto px-4 sm:px-8 py-20 text-center text-xs text-[#6E6E68]">
-        Loading administrator console…
+        Loading staff console…
       </div>
     );
   }
 
-  if (!user || user.role !== 'admin') {
+  if (!user || !isStaffRole(user.role)) {
     return null;
   }
 
@@ -94,7 +95,7 @@ export function AdminShell({
         <aside className="lg:col-span-3 bg-white border border-[#E5E5E0] rounded-xl p-5 space-y-4 lg:sticky lg:top-24">
           <div className="pb-3 border-b border-[#E5E5E0]">
             <p className="text-[11px] text-[#6E6E68]">{siteName}</p>
-            <p className="font-display text-base font-bold">Parts & Workshop Admin</p>
+            <p className="font-display text-base font-bold">Parts & Workshop Console</p>
           </div>
           <nav className="flex flex-row lg:flex-col gap-1 overflow-x-auto pb-1 lg:pb-0">
             {ADMIN_LINKS.map((i) => (
