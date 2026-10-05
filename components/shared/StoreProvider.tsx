@@ -160,6 +160,43 @@ function publicStorageUrl(bucket: string, path: string | null | undefined) {
     : path;
 }
 
+async function resolveVehicleVariantId(
+  client: any,
+  compatibility: { make?: string; model?: string; years?: string; engine?: string }
+): Promise<string | null> {
+  const make = compatibility.make?.trim().toLowerCase();
+  const model = compatibility.model?.trim().toLowerCase();
+  const engine = compatibility.engine?.trim().toLowerCase();
+  const years = compatibility.years?.trim() || '';
+  if (!make && !model && !engine && !years) return null;
+
+  const { data } = await client
+    .from('vehicle_variants')
+    .select('id,name,year_from,year_to,engine,engine_code,vehicle_models(name,vehicle_makes(name))')
+    .eq('is_active', true);
+
+  const parseYearRange = (value: string) => {
+    const parts = value.match(/(\\d{4}).*?(\\d{4})/);
+    return parts ? [Number(parts[1]), Number(parts[2])] : [Number(value) || 0, Number(value) || 0];
+  };
+  const [fromYear, toYear] = parseYearRange(years);
+
+  const found = (data || []).find((v: any) => {
+    const vMake = String(v.vehicle_models?.vehicle_makes?.name || '').toLowerCase();
+    const vModel = String(v.vehicle_models?.name || '').toLowerCase();
+    const vEngine = [v.engine, v.engine_code].filter(Boolean).join(' ').toLowerCase();
+    const makeOk = !make || vMake === make || vMake.includes(make) || make.includes(vMake);
+    const modelOk = !model || vModel === model || vModel.includes(model) || model.includes(vModel) || String(v.name || '').toLowerCase().includes(model);
+    const engineOk = !engine || vEngine.includes(engine) || engine.includes(vEngine);
+    const yearOk =
+      !fromYear ||
+      !v.year_from ||
+      ((v.year_from ?? 0) <= toYear && (v.year_to ?? fromYear) >= fromYear);
+    return makeOk && modelOk && engineOk && yearOk;
+  });
+  return found?.id || null;
+}
+
 function mapProduct(row: any): PartProduct {
   const images = Array.isArray(row.product_images)
     ? [...row.product_images].sort(
@@ -1187,6 +1224,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
+    const compatibilityRows = Array.isArray(part.compatibility)
+      ? part.compatibility.filter((item: any) => item && [item.make, item.model, item.years, item.engine].some(Boolean))
+      : [];
+    for (const item of compatibilityRows) {
+      const variantId = await resolveVehicleVariantId(c, item);
+      if (variantId) {
+        const result = await c.from('product_vehicle_compatibility').insert({
+          product_id: data.id,
+          vehicle_variant_id: variantId,
+          fitment_notes: item.engine?.trim() || null,
+          is_confirmed: false,
+        });
+        if (result.error) throw result.error;
+      }
+    }
+
     const gallery =
       Array.isArray(part.gallery_images) && part.gallery_images.length > 0
         ? part.gallery_images.filter(Boolean)
@@ -1259,6 +1312,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           .from('inventory')
           .update({ quantity: updates.stock })
           .eq('id', i.id);
+    }
+
+    if (updates.compatibility !== undefined) {
+      const compatibilityRows = Array.isArray(updates.compatibility)
+        ? updates.compatibility.filter((item: any) => item && [item.make, item.model, item.years, item.engine].some(Boolean))
+        : [];
+      const del = await c.from('product_vehicle_compatibility').delete().eq('product_id', id);
+      if (del.error) throw del.error;
+      for (const item of compatibilityRows) {
+        const variantId = await resolveVehicleVariantId(c, item);
+        if (variantId) {
+          const result = await c.from('product_vehicle_compatibility').insert({
+            product_id: id,
+            vehicle_variant_id: variantId,
+            fitment_notes: item.engine?.trim() || null,
+            is_confirmed: false,
+          });
+          if (result.error) throw result.error;
+        }
+      }
     }
 
     if (updates.primary_image || updates.gallery_images) {
