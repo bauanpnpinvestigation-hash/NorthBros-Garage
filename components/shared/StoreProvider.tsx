@@ -110,12 +110,16 @@ function mapOrder(row:any): Order {
   };
 }
 
-async function loadProfile(id:string):Promise<UserProfile|null> {
+async function loadProfile(id:string, authUserOverride?:any):Promise<UserProfile|null> {
   const c=sb(); if(!c) return null;
-  const [{data:profile},{data:address},{data:{user:authUser}}]=await Promise.all([
+  let authUser=authUserOverride;
+  if(!authUser){
+    const {data:{user}}=await c.auth.getUser();
+    authUser=user;
+  }
+  const [{data:profile},{data:address}]=await Promise.all([
     c.from('profiles').select('*').eq('id',id).maybeSingle(),
     c.from('addresses').select('*').eq('customer_id',id).eq('is_default',true).order('created_at',{ascending:false}).limit(1).maybeSingle(),
-    c.auth.getUser(),
   ]);
   if(!authUser || authUser.id !== id) return null;
   return {
@@ -182,14 +186,14 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
   useEffect(()=>{
     let mounted=true; const c=sb();
     (async()=>{
-      if(c){ const {data:{user:authUser}}=await c.auth.getUser(); if(mounted&&authUser){const p=await loadProfile(authUser.id);if(p)setUser(p);await loadCustomerData(authUser.id);if(p?.role==='admin')await loadAdminData();}
+      if(c){ const {data:{user:authUser}}=await c.auth.getUser(); if(mounted&&authUser){const p=await loadProfile(authUser.id,authUser);if(p)setUser(p);await loadCustomerData(authUser.id);if(p?.role==='admin')await loadAdminData();}
         await loadCatalog(); await loadVlogs(); }
       if(mounted)setIsHydrated(true);
     })();
     if(!c) return ()=>{mounted=false};
     const {data:{subscription}}=c.auth.onAuthStateChange((_e,session)=>{
       if(!mounted)return;
-      if(session){setTimeout(async()=>{const p=await loadProfile(session.user.id);if(mounted&&p)setUser(p);await loadCustomerData(session.user.id);if(p?.role==='admin')await loadAdminData();},0);}
+      if(session){setTimeout(async()=>{const p=await loadProfile(session.user.id,session.user);if(mounted&&p)setUser(p);await loadCustomerData(session.user.id);if(p?.role==='admin')await loadAdminData();},0);}
       else {setUser(null);setFavorites([]);setCart([]);setOrders([]);setServiceBookings([]);}
     });
     return ()=>{mounted=false;subscription.unsubscribe();};
@@ -244,7 +248,7 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
     const c=sb();if(!c)return;
     const {data:{user:authUser}}=await c.auth.getUser();
     if(!authUser){setUser(null);return;}
-    const p=await loadProfile(authUser.id);
+    const p=await loadProfile(authUser.id,authUser);
     if(p)setUser(p);
     await loadCustomerData(authUser.id);
     if(p?.role==='admin')await loadAdminData();
@@ -255,7 +259,7 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
     const {data,error}=await c.auth.signInWithPassword({email:email.trim(),password});
     if(error){showToast(error.message,'error');return false;}
     if(data.user){
-      const p=await loadProfile(data.user.id);
+      const p=await loadProfile(data.user.id,data.user);
       if(p)setUser(p);
       await loadCustomerData(data.user.id);
     }
@@ -265,7 +269,7 @@ export function StoreProvider({children}:{children:React.ReactNode}) {
     const c=sb();if(!c){showToast('Supabase is not configured.','error');return false;}
     const {data,error}=await c.auth.signUp({email:email.trim().toLowerCase(),password,options:{data:{full_name:name.trim(),phone:phone.trim()}}});
     if(error){showToast(error.message,'error');return false;}
-    if(data.user&&data.session){const p=await loadProfile(data.user.id);setUser(p);showToast('Account created.');return true;}
+    if(data.user&&data.session){const p=await loadProfile(data.user.id,data.user);setUser(p);showToast('Account created.');return true;}
     showToast('Account created. Check your email to confirm.','info');return false;
   };
   const logout=async()=>{const c=sb();if(c)await c.auth.signOut();setUser(null);setFavorites([]);setCart([]);setOrders([]);setServiceBookings([]);};
