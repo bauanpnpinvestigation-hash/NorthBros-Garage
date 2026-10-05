@@ -14,19 +14,21 @@ export default function CheckoutPage() {
   const [customerEmail, setCustomerEmail] = useState(user?.email || '');
   const [customerPhone, setCustomerPhone] = useState(user?.phone || '');
   const [shippingAddress, setShippingAddress] = useState(
-    user?.address || '148 McKinley Parkway, Bonifacio Global City'
+    user?.address || ''
   );
   const [shippingCity, setShippingCity] = useState(
-    user?.city || 'Taguig City, Metro Manila'
+    user?.city || ''
   );
   const [shippingPostalCode, setShippingPostalCode] = useState(
-    user?.postal_code || '1634'
+    user?.postal_code || ''
   );
   const [paymentMethod, setPaymentMethod] =
     useState<PaymentMethodType>('GCash');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkoutIdempotencyKey] = useState(() => crypto.randomUUID());
 
   const subtotal = cart.reduce(
     (sum, item) => sum + item.unit_price * item.quantity,
@@ -53,16 +55,20 @@ export default function CheckoutPage() {
     }
 
     setErrors({});
+    setIsSubmitting(true);
     try {
       const code = paymentMethod === 'GCash' ? 'gcash' : paymentMethod === 'Maya' ? 'maya' : 'gotyme';
       const result = await createOrder({
         recipient_name: customerName.trim(), phone: customerPhone.trim(), address_line: shippingAddress.trim(),
         city: shippingCity.trim(), postal_code: shippingPostalCode.trim(), payment_method_code: code,
-        customer_notes: notes.trim() || undefined, items: cart.map((c) => ({ product_id: c.product_id, quantity: c.quantity })),
+        customer_notes: notes.trim() || undefined, idempotency_key: checkoutIdempotencyKey,
+        items: cart.map((c) => ({ product_id: c.product_id, quantity: c.quantity })),
       });
       setConfirmedOrder({ id: result.id, order_number: result.order_number, customer_name: customerName.trim(), customer_email: customerEmail.trim(), customer_phone: customerPhone.trim(), shipping_address: shippingAddress.trim(), shipping_city: shippingCity.trim(), shipping_postal_code: shippingPostalCode.trim(), payment_method: paymentMethod, payment_status: 'Pending Verification', fulfillment_status: 'Processing', items: cart, subtotal: result.subtotal, shipping_fee: result.shipping_fee, discount_amount: 0, total_amount: result.total_amount, created_at: new Date().toISOString() });
     } catch (error) {
       setErrors({ submit: error instanceof Error ? error.message : 'Unable to place the order. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -79,8 +85,7 @@ export default function CheckoutPage() {
               Order Confirmed
             </h1>
             <p className="text-sm text-[#6E6E68]">
-              Thank you for your order. Our parts warehouse is preparing your
-              shipment.
+              Thank you for your order. Your payment is still pending verification, and our parts warehouse will prepare the shipment after payment is confirmed.
             </p>
           </div>
 
@@ -370,9 +375,10 @@ export default function CheckoutPage() {
 
           <button
             type="submit"
-            className="w-full py-3 px-5 bg-[#141413] hover:bg-neutral-800 text-white text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer"
+            disabled={isSubmitting}
+            className="w-full py-3 px-5 bg-[#141413] hover:bg-neutral-800 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer"
           >
-            Place Order ({paymentMethod})
+            {isSubmitting ? 'Processing Order…' : `Place Order (${paymentMethod})`}
           </button>
 
           <div className="flex items-center gap-2 text-[11px] text-[#6E6E68]">
