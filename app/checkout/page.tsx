@@ -54,13 +54,13 @@ export default function CheckoutPage() {
 
     setErrors({});
     try {
-      const code = paymentMethod === 'GCash' ? 'gcash' : paymentMethod === 'Maya' ? 'maya' : paymentMethod === 'GoTyme / QR Ph' ? 'gotyme' : 'cod';
+      const code = paymentMethod === 'GCash' ? 'gcash' : paymentMethod === 'Maya' ? 'maya' : 'gotyme';
       const result = await createOrder({
         recipient_name: customerName.trim(), phone: customerPhone.trim(), address_line: shippingAddress.trim(),
         city: shippingCity.trim(), postal_code: shippingPostalCode.trim(), payment_method_code: code,
         customer_notes: notes.trim() || undefined, items: cart.map((c) => ({ product_id: c.product_id, quantity: c.quantity })),
       });
-      setConfirmedOrder({ id: result.id, order_number: result.order_number, customer_name: customerName.trim(), customer_email: customerEmail.trim(), customer_phone: customerPhone.trim(), shipping_address: shippingAddress.trim(), shipping_city: shippingCity.trim(), shipping_postal_code: shippingPostalCode.trim(), payment_method: paymentMethod, payment_status: paymentMethod === 'Cash on Delivery (COD)' ? 'COD Pending' : 'Pending Verification', fulfillment_status: 'Processing', items: cart, subtotal: result.subtotal, shipping_fee: result.shipping_fee, discount_amount: 0, total_amount: result.total_amount, created_at: new Date().toISOString() });
+      setConfirmedOrder({ id: result.id, order_number: result.order_number, customer_name: customerName.trim(), customer_email: customerEmail.trim(), customer_phone: customerPhone.trim(), shipping_address: shippingAddress.trim(), shipping_city: shippingCity.trim(), shipping_postal_code: shippingPostalCode.trim(), payment_method: paymentMethod, payment_status: 'Pending Verification', fulfillment_status: 'Processing', items: cart, subtotal: result.subtotal, shipping_fee: result.shipping_fee, discount_amount: 0, total_amount: result.total_amount, created_at: new Date().toISOString() });
     } catch (error) {
       setErrors({ submit: error instanceof Error ? error.message : 'Unable to place the order. Please try again.' });
     }
@@ -288,7 +288,7 @@ export default function CheckoutPage() {
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {(['GCash','Maya','GoTyme / QR Ph','Cash on Delivery (COD)'] as const).map((method) => (
+            {(['GCash','Maya','GoTyme / QR Ph'] as const).map((method) => (
               <button
                 key={method}
                 type="button"
