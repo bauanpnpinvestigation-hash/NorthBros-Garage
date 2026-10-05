@@ -237,7 +237,7 @@ function mapService(row: any): AutomotiveService {
     slug: row.slug,
     service_code: row.slug,
     name: row.name,
-    category: row.service_categories?.name || 'Periodic Maintenance',
+    category: row.service_categories?.name || 'Uncategorized',
     price: Number(row.price || 0),
     duration_minutes: Number(row.duration_minutes || 0),
     duration_label: row.duration_minutes
