@@ -4,11 +4,13 @@ import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/components/shared/StoreProvider';
-import { formatDate, formatPHP } from '@/lib/utils/format';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
+import { formatDate, formatCurrency } from '@/lib/utils/format';
 
 export default function AccountDashboardPage() {
   const router = useRouter();
   const { user, favorites, orders, serviceBookings, customerVehicles, logout, isHydrated, refreshAuth } = useStore();
+  const { getCurrency } = useAppSettings();
   const [authSyncCompleted, setAuthSyncCompleted] = React.useState(false);
 
   React.useEffect(() => {
@@ -194,7 +196,7 @@ export default function AccountDashboardPage() {
                 </p>
               </div>
               <span className="text-xs font-mono font-bold text-[#141413] tabular-nums shrink-0">
-                {formatPHP(ord.total_amount)}
+                {formatCurrency(ord.total_amount, getCurrency())}
               </span>
             </div>
           ))}
