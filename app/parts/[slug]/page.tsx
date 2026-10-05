@@ -16,7 +16,7 @@ export async function generateMetadata({
 
   if (!part) {
     return {
-      title: 'Car Part Detail | Apex Auto Parts PH',
+      title: 'Car Part Detail',
     };
   }
 
