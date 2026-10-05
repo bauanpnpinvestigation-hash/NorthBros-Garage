@@ -186,7 +186,7 @@ export function PartForm({ initialPart }: PartFormProps) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Brembo Premium Ceramic Front Brake Pads Set"
+              placeholder="e.g. Front brake pad set"
               className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
             />
             {errors.name && <p className="text-xs text-red-700 mt-1">{errors.name}</p>}
