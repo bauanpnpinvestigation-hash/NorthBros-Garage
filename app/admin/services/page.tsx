@@ -14,8 +14,8 @@ export default function AdminServicesPage() {
   const [slug, setSlug] = useState('');
   const [category, setCategory] = useState<AutomotiveService['category']>('');
   const [serviceCategories, setServiceCategories] = useState<Array<{id:string;name:string;slug:string;is_active:boolean}>>([]);
-  const [price, setPrice] = useState('3500');
-  const [durationMinutes, setDurationMinutes] = useState('90');
+  const [price, setPrice] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -36,8 +36,8 @@ export default function AdminServicesPage() {
     setName('');
     setSlug('');
     setCategory(serviceCategories[0]?.name || '');
-    setPrice('3500');
-    setDurationMinutes('90');
+    setPrice('');
+    setDurationMinutes('');
     setDescription('');
     setImageUrl('');
     setEditingId(null);
@@ -50,7 +50,7 @@ export default function AdminServicesPage() {
     setSlug(service.slug);
     setCategory(service.category);
     setPrice(String(service.price));
-    setDurationMinutes(String(service.duration_minutes || 60));
+    setDurationMinutes(service.duration_minutes ? String(service.duration_minutes) : '');
     setDescription(service.description || '');
     setImageUrl(service.image_url || '');
     setError('');
@@ -73,13 +73,15 @@ export default function AdminServicesPage() {
       name: cleanName,
       category,
       price: Number(price) || 0,
-      duration_minutes: Number(durationMinutes) || 60,
-      duration_label: `${Number(durationMinutes) || 60} mins`,
+      duration_minutes: Number(durationMinutes) || 0,
+      duration_label: durationMinutes.trim() ? String(Number(durationMinutes)) + ' mins' : 'By inspection',
       availability: 'Available' as const,
       description: description.trim(),
       included_operations: [],
       recommended_interval: '',
       image_url: imageUrl.trim(),
+      is_bookable: true,
+      requires_inspection: false,
     };
 
     try {
