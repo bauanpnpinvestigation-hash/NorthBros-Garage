@@ -2,12 +2,14 @@
 
 import React from 'react';
 import { useStore } from '@/components/shared/StoreProvider';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { AdminShell } from '@/components/admin/AdminShell';
-import { formatDate, formatPHP } from '@/lib/utils/format';
+import { formatDate, formatCurrency } from '@/lib/utils/format';
 import { OrderFulfillmentStatus, PaymentStatus } from '@/types/database';
 
 export default function AdminOrdersPage() {
   const { orders, updateOrderStatus } = useStore();
+  const { getCurrency } = useAppSettings();
 
   return (
     <AdminShell
@@ -97,7 +99,7 @@ export default function AdminOrdersPage() {
                         {item.quantity}x {item.name} ({item.sku})
                       </span>
                       <span className="font-mono font-semibold tabular-nums">
-                        {formatPHP(item.subtotal)}
+                        {formatCurrency(item.subtotal, getCurrency())}
                       </span>
                     </div>
                   ))}
@@ -112,7 +114,7 @@ export default function AdminOrdersPage() {
                 <div className="text-right">
                   <span className="text-[#6E6E68]">Total Order Amount:</span>{' '}
                   <span className="font-mono font-bold text-[#141413] text-sm tabular-nums">
-                    {formatPHP(ord.total_amount)}
+                    {formatCurrency(ord.total_amount, getCurrency())}
                   </span>
                 </div>
               </div>
