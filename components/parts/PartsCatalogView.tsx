@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useStore } from '@/components/shared/StoreProvider';
+import { createClient } from '@/lib/supabase/client';
 import { PartCard } from '@/components/parts/PartCard';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 
@@ -17,11 +18,13 @@ export function PartsCatalogView({
   lockedBrandSlug,
   lockedCategorySlug,
   heading = 'Car Parts & Maintenance Catalog',
-  subheading = 'Shop genuine OEM and performance brake kits, synthetic oil bundles, AGM batteries, suspension dampers, and ignition parts.',
+  subheading = 'Shop products configured by the business, with filtering by category, manufacturer, and vehicle compatibility.',
 }: PartsCatalogViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { parts, brands, categories } = useStore();
+  const [vehicleMakes, setVehicleMakes] = useState<Array<{id:string;name:string;slug:string}>>([]);
+  useEffect(() => { const c=createClient(); if(!c) return; void c.from('vehicle_makes').select('id,name,slug').eq('is_active',true).order('name').then(({data})=>setVehicleMakes((data||[]) as Array<{id:string;name:string;slug:string}>)); }, []);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const q = searchParams.get('q') || '';
@@ -245,12 +248,7 @@ export function PartsCatalogView({
           className="w-full px-3 py-2 text-sm bg-[#FAF9F6] border border-[#E5E5E0] rounded-lg"
         >
           <option value="all">All Compatible Makes</option>
-          <option value="Toyota">Toyota</option>
-          <option value="Honda">Honda</option>
-          <option value="Mitsubishi">Mitsubishi</option>
-          <option value="Ford">Ford</option>
-          <option value="Nissan">Nissan</option>
-          <option value="Mazda">Mazda</option>
+          {vehicleMakes.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}
         </select>
       </div>
 
