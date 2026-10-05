@@ -2,12 +2,14 @@
 
 import React from 'react';
 import { useStore } from '@/components/shared/StoreProvider';
+import { useAppSettings } from '@/components/shared/AppSettingsProvider';
 import { AdminShell } from '@/components/admin/AdminShell';
-import { formatDate, formatPHP } from '@/lib/utils/format';
+import { formatDate, formatCurrency } from '@/lib/utils/format';
 import { ServiceBookingStatus } from '@/types/database';
 
 export default function AdminAppointmentsPage() {
   const { serviceBookings, updateServiceBookingStatus } = useStore();
+  const { getCurrency } = useAppSettings();
 
   return (
     <AdminShell
@@ -36,7 +38,7 @@ export default function AdminAppointmentsPage() {
                       {booking.service_name}
                     </span>
                     <span className="font-mono text-[#52524E]">
-                      ({formatPHP(booking.service_price)})
+                      ({formatCurrency(booking.service_price, getCurrency())})
                     </span>
                   </div>
                   <p className="text-[#52524E]">
