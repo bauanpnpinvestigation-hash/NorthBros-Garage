@@ -33,6 +33,9 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [manualReference, setManualReference] = useState('');
+  const [manualReferenceSubmitted, setManualReferenceSubmitted] = useState(false);
+  const [confirmedPaymentId, setConfirmedPaymentId] = useState<string | null>(null);
   const [checkoutIdempotencyKey] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
@@ -110,6 +113,8 @@ export default function CheckoutPage() {
         }
       }
 
+      setConfirmedPaymentId(result.payment_id || null);
+      setManualReferenceSubmitted(false);
       setConfirmedOrder({
         id: result.id,
         order_number: result.order_number,
@@ -146,7 +151,29 @@ export default function CheckoutPage() {
     }
   };
 
+  const submitManualReference = async () => {
+    if (!confirmedPaymentId || !manualReference.trim()) return;
+    const supabase = createClient();
+    if (!supabase) {
+      setErrors({ submit: 'Supabase is not configured.' });
+      return;
+    }
+    const { error } = await supabase.rpc('submit_manual_payment_reference', {
+      p_payment_id: confirmedPaymentId,
+      p_reference: manualReference.trim(),
+    });
+    if (error) {
+      setErrors({ submit: error.message });
+      return;
+    }
+    setManualReferenceSubmitted(true);
+    setErrors({});
+  };
+
   if (confirmedOrder) {
+    const selectedConfig = (selectedPayment?.public_config || {}) as Record<string, unknown>;
+    const isGcash = selectedPayment?.code === 'gcash';
+    const qrImageUrl = typeof selectedConfig.qr_image_url === 'string' ? selectedConfig.qr_image_url : '';
     return (
       <div className="max-w-2xl mx-auto px-4 sm:px-8 py-16">
         <div className="bg-white border border-[#E5E5E0] rounded-xl p-8 sm:p-10 text-center space-y-6">
@@ -195,6 +222,29 @@ export default function CheckoutPage() {
               </span>
             </div>
           </div>
+
+          {isGcash && (
+            <div className="text-left rounded-xl border border-[#E5E5E0] bg-[#FAF9F6] p-5 space-y-4">
+              <div>
+                <h2 className="font-display text-base font-bold text-[#141413]">GCash Payment</h2>
+                <p className="mt-1 text-xs text-[#6E6E68]">Scan the official NorthBros GCash QR and pay the exact order total shown above. Payment stays pending until it is manually verified.</p>
+              </div>
+              {qrImageUrl ? (
+                <div className="flex justify-center rounded-lg bg-white border border-[#E5E5E0] p-4">
+                  <img src={qrImageUrl} alt="NorthBros GCash payment QR code" className="w-64 h-64 object-contain" />
+                </div>
+              ) : (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+                  The GCash QR is not configured yet. The payment method is enabled, but no payment can be verified until the official QR is uploaded.
+                </div>
+              )}
+              <div>
+                <label htmlFor="gcash-reference" className="block text-xs font-semibold text-[#141413] mb-1">GCash Transaction Reference</label>
+                <input id="gcash-reference" type="text" value={manualReference} onChange={(e) => setManualReference(e.target.value)} disabled={manualReferenceSubmitted} placeholder="Enter the reference shown after payment" className="w-full px-3.5 py-2.5 text-sm bg-white border border-[#E5E5E0] rounded-lg font-mono" />
+                {manualReferenceSubmitted ? <p className="mt-2 text-xs text-emerald-700">Reference submitted. Your payment is awaiting manual verification.</p> : <button type="button" onClick={submitManualReference} disabled={!confirmedPaymentId || !manualReference.trim()} className="mt-2 w-full py-2.5 px-4 bg-[#141413] disabled:opacity-50 text-white text-xs font-semibold rounded-lg">Submit Payment Reference</button>}
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
