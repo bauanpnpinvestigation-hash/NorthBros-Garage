@@ -104,8 +104,12 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         .select('id,category,setting_key,setting_value,is_public,description,created_at,updated_at')
         .single();
       if (error) throw error;
-      await refreshSettings(false);
-      return data as AppSetting;
+      const saved = data as AppSetting;
+      setSettings((current) => {
+        const exists = current.some((item) => item.id === saved.id);
+        return exists ? current.map((item) => item.id === saved.id ? saved : item) : [...current, saved];
+      });
+      return saved;
     },
     [refreshSettings]
   );
@@ -124,8 +128,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
         .select('id,category,setting_key,setting_value,is_public,description,created_at,updated_at')
         .single();
       if (error) throw error;
-      await refreshSettings(false);
-      return data as AppSetting;
+      const saved = data as AppSetting;
+      setSettings((current) => current.map((item) => item.id === saved.id ? saved : item));
+      return saved;
     },
     [refreshSettings]
   );
