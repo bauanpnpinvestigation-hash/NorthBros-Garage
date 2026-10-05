@@ -4,6 +4,7 @@ import React, { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useStore } from '@/components/shared/StoreProvider';
+import { isStaffRole } from '@/lib/auth/role';
 
 function LoginContent() {
   const router = useRouter();
@@ -54,10 +55,10 @@ function LoginContent() {
 
           <div className="space-y-2.5">
             <Link
-              href={user.role === 'admin' ? '/admin' : '/account'}
+              href={isStaffRole(user.role) ? '/admin' : '/account'}
               className="block w-full py-2.5 bg-[#141413] hover:bg-neutral-800 text-white text-xs font-semibold rounded-lg"
             >
-              {user.role === 'admin' ? 'Go to Admin Dashboard →' : 'Go to My Account →'}
+              {isStaffRole(user.role) ? 'Go to Admin Dashboard →' : 'Go to My Account →'}
             </Link>
             <Link
               href="/vlogs"
@@ -87,7 +88,7 @@ function LoginContent() {
     <div className="max-w-md mx-auto px-4 sm:px-8 py-16">
       <div className="bg-white border border-[#E5E5E0] rounded-xl p-7 sm:p-8 space-y-6">
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-[#6E6E68]">NorthBros Garage Account</p>
+          <p className="text-xs font-medium text-[#6E6E68]">Business Account</p>
           <h1 className="font-display text-2xl font-bold text-[#141413]">Sign In</h1>
           <p className="text-xs text-[#6E6E68]">
             Access your saved parts, orders, service appointments, daily vlogs, and account settings.
@@ -143,7 +144,7 @@ function LoginContent() {
         </form>
 
         <div className="pt-4 border-t border-[#E5E5E0] flex items-center justify-between text-xs text-[#6E6E68]">
-          <span>New to NorthBros Garage?</span>
+          <span>New to this business?</span>
           <Link href="/auth/register" className="font-semibold text-[#141413] hover:underline">
             Create Account →
           </Link>
